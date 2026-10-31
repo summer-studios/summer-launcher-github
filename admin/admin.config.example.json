@@ -1,9 +1,0 @@
-{
-  "githubToken": "PEGA_AQUI_TU_TOKEN",
-  "owner": "summer-studios",
-  "repo": "summer-launcher-github",
-  "branch": "main",
-  "backend": "repo",
-  "gistId": "",
-  "panelPort": 4580
-}
