@@ -7,6 +7,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const paths = require('../paths');
 const db = require('../database/access-db');
+const serversDb = require('../database/servers-db');
 
 const defined = new Map();
 
@@ -49,7 +50,7 @@ function listFor(gamertag) {
     .filter((i) => i.access === 'public' || db.canAccess(gamertag, i.id))
     .map((i) => {
       const thumb = i.thumbnail && fs.existsSync(paths.inRoot(i.thumbnail)) ? pathToFileURL(paths.inRoot(i.thumbnail)).href : null;
-      return { id: i.id, name: i.tabTitle, thumbnail: thumb, hasServer: !!i.server };
+      return { id: i.id, name: i.tabTitle, thumbnail: thumb, hasServer: !!serversDb.get(i.id, i.server) };
     });
 }
 

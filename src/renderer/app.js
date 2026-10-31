@@ -64,7 +64,7 @@ function renderInstances() {
   for (const i of list) {
     const el = document.createElement('button');
     el.className = 'inst';
-    el.innerHTML = `<div class="thumb">${i.thumbnail ? `<img src="${i.thumbnail}" alt="">` : `<b>${i.name[0] || '?'}</b>`}</div><span class="name"></span>`;
+    el.innerHTML = `<div class="thumb">${i.thumbnail ? `<img src="${i.thumbnail}" alt="">` : `<b>${i.name[0] || '?'}</b>`}<span class="play">JUGAR</span></div><span class="name"></span>`;
     el.querySelector('.name').textContent = i.name;
     el.addEventListener('click', () => launchInstance(i));
     grid.append(el);
@@ -151,6 +151,13 @@ function bind() {
     toast('Ruta guardada');
   });
   $('#openFolder').addEventListener('click', async () => { if (!(await api.openGameFolder())) toast('No se encontró la carpeta del juego', true); });
+
+  // Tiempo real: el launcher avisa cuando cambian las instancias que este usuario puede ver.
+  api.onInstancesUpdated((list) => {
+    instances = list;
+    if (!$('#viewInstances').classList.contains('hidden')) renderInstances();
+    toast('Tu lista de instancias se actualizó');
+  });
 
   api.onProgress(({ pct, msg }) => {
     $('#loadingBar').style.width = `${pct}%`;

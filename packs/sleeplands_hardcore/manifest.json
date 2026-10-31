@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Sleeplands Hardcore UI",
+    "description": "Menu principal de Sleeplands Hardcore",
+    "uuid": "f536b661-de77-5f6c-91c8-484cf4c941ba",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      20,
+      0
+    ]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "676d42b6-4cf5-51d5-8d25-bc77b717a8f3",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    }
+  ]
+}

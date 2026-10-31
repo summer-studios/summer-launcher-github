@@ -1,40 +1,24 @@
 // Base de datos de acceso: quien (gamertag) puede entrar a que instancias.
-// Fuente: database/access.json en tu GitHub (editable). Respaldo: cache local y copia incluida.
+// Fuente: database/access.json en tu GitHub (editable, tambien con el programa admin/).
+// Respaldo: cache local y copia incluida. Ver remote.js.
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
 const paths = require('../paths');
+const { loadJson } = require('./remote');
 
 let state = { data: { users: [] }, source: 'none', syncedAt: null };
 
 const norm = (n) => String(n || '').trim().toLowerCase();
-const cacheFile = () => path.join(paths.userData(), 'access.cache.json');
-
-function remoteUrl() {
-  if (config.database.remoteUrl) return config.database.remoteUrl;
-  const g = config.github;
-  if (!g.owner || g.owner.startsWith('TU_')) return null;
-  return `https://raw.githubusercontent.com/${g.owner}/${g.repo}/${g.branch}/${config.database.file}`;
-}
 
 async function refresh() {
-  const url = remoteUrl();
-  if (url) {
-    try {
-      const res = await fetch(`${url}?t=${Date.now()}`, { signal: AbortSignal.timeout(6000), cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (!Array.isArray(data.users)) throw new Error('access.json invalido');
-      fs.mkdirSync(paths.userData(), { recursive: true });
-      fs.writeFileSync(cacheFile(), JSON.stringify(data));
-      return (state = { data, source: 'github', syncedAt: Date.now() });
-    } catch (e) { console.warn('[db] GitHub no disponible:', e.message); }
-    try {
-      return (state = { data: JSON.parse(fs.readFileSync(cacheFile(), 'utf8')), source: 'cache', syncedAt: null });
-    } catch {}
-  }
-  const bundled = JSON.parse(fs.readFileSync(paths.inRoot(config.database.file), 'utf8'));
-  return (state = { data: bundled, source: 'local', syncedAt: null });
+  const r = await loadJson({
+    file: config.database.file,
+    remoteUrl: config.database.remoteUrl,
+    cacheName: 'access.cache.json',
+    valid: (d) => d && Array.isArray(d.users),
+  });
+  return (state = { data: r.data, source: r.source, syncedAt: r.syncedAt });
 }
 
 function allowedInstances(gamertag) {
