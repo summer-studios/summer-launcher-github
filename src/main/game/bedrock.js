@@ -1,6 +1,7 @@
 // Localiza Minecraft Bedrock (Windows) y administra su estructura de carpetas (com.mojang).
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 const config = require('../config');
 const settings = require('../settings');
 
@@ -38,4 +39,42 @@ function ensureStructure(comMojang) {
   for (const f of SUBFOLDERS) fs.mkdirSync(path.join(comMojang, f), { recursive: true });
 }
 
-module.exports = { locate, ensureStructure, SUBFOLDERS };
+// En GDK hay varias carpetas com.mojang: Users\Shared (packs, mundos) y Users\<id> (opciones de cada
+// cuenta, donde Minecraft puede leer global_resource_packs.json). Devuelve donde instalar los packs
+// y TODAS las carpetas donde hay que escribir la lista de packs globales.
+function locateAll() {
+  const found = locate();
+  if (!found) return null;
+  const globalRoots = [found.comMojang];
+  if (found.kind !== 'manual') {
+    const m = found.comMojang.match(/^(.*[\\/]Users)[\\/][^\\/]+[\\/]games[\\/]com\.mojang$/i);
+    if (m) {
+      try {
+        for (const id of fs.readdirSync(m[1])) {
+          const dir = path.join(m[1], id, 'games', 'com.mojang');
+          if (fs.existsSync(dir) && !globalRoots.includes(dir)) globalRoots.push(dir);
+        }
+      } catch { /* sin permiso: se usa solo la carpeta principal */ }
+    }
+  }
+  return { packRoot: found.comMojang, globalRoots };
+}
+
+// --- Minecraft abierto: si ya esta corriendo, lee los packs al arrancar y pisa la lista al cerrar.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const run = (file, args) => new Promise((res) => execFile(file, args, { windowsHide: true }, (_e, out) => res(String(out || ''))));
+const isRunning = async () => /Minecraft\.Windows\.exe/i.test(await run('tasklist', ['/FI', 'IMAGENAME eq Minecraft.Windows.exe', '/NH']));
+
+// Cierra Minecraft (primero con gentileza, a la fuerza si no responde). Devuelve true si estaba abierto.
+async function closeIfRunning() {
+  if (process.platform !== 'win32') return false;
+  if ((config.bedrock || {}).closeRunningGame === false) return false;
+  if (!(await isRunning())) return false;
+  await run('taskkill', ['/IM', 'Minecraft.Windows.exe']);
+  for (let i = 0; i < 16; i++) { await sleep(500); if (!(await isRunning())) return true; }
+  await run('taskkill', ['/F', '/IM', 'Minecraft.Windows.exe']);
+  await sleep(1500);
+  return true;
+}
+
+module.exports = { locate, locateAll, closeIfRunning, ensureStructure, SUBFOLDERS };

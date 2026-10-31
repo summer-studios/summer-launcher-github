@@ -37,14 +37,31 @@ function installResourcePack(comMojang, src) {
 }
 
 // Reemplaza SOLO los packs que puso Summer; los que el usuario activo a mano no se tocan.
-function setGlobalPacks(comMojang, packs) {
-  const file = path.join(comMojang, 'minecraftpe', 'global_resource_packs.json');
-  const current = readJson(file, []);
+// roots: { packRoot, globalRoots } de bedrock.locateAll(). La lista se escribe en TODAS las carpetas
+// de cuenta y luego se vuelve a leer para comprobar que quedo guardada.
+function setGlobalPacks(roots, packs) {
   const prevManaged = readJson(managedFile(), []);
-  const kept = (Array.isArray(current) ? current : []).filter((e) => !prevManaged.includes(e.pack_id));
   const added = packs.map((p) => ({ pack_id: p.uuid, version: p.version }));
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify([...added, ...kept], null, 2));
+
+  for (const root of roots.globalRoots) {
+    const file = path.join(root, 'minecraftpe', 'global_resource_packs.json');
+    const current = readJson(file, []);
+    const kept = (Array.isArray(current) ? current : []).filter((e) => !prevManaged.includes(e.pack_id) && !packs.some((p) => p.uuid === e.pack_id));
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify([...added, ...kept], null, 2));
+    const check = readJson(file, []);
+    for (const a of added) {
+      if (!Array.isArray(check) || !check.some((e) => e.pack_id === a.pack_id)) throw new Error('No se pudo activar el pack de la instancia (no se guardó la lista de packs).');
+    }
+  }
+
+  // Quita del disco los packs de otras instancias que Summer instalo antes.
+  const keepNow = new Set(packs.map((p) => p.uuid));
+  for (const old of prevManaged) {
+    if (keepNow.has(old)) continue;
+    try { fs.rmSync(path.join(roots.packRoot, 'resource_packs', `summer_${old}`), { recursive: true, force: true }); } catch { /* en uso */ }
+  }
+
   fs.mkdirSync(paths.userData(), { recursive: true });
   fs.writeFileSync(managedFile(), JSON.stringify(packs.map((p) => p.uuid)));
 }

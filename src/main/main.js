@@ -114,8 +114,7 @@ function registerIpc() {
     if (inst.access !== 'public' && !db.canAccess(user.gamertag, inst.id)) return { ok: false, error: 'Tu cuenta no tiene acceso a esta instancia' };
     splash.show(); // tapa las pantallas de arranque de Minecraft con la del launcher
     try {
-      const r = await launch(inst, (pct, msg) => win.webContents.send('launch:progress', { pct, msg }));
-      splash.finishWhenReady();
+      const r = await launch(inst, (pct, msg) => win.webContents.send('launch:progress', { pct, msg }), { onGameOpened: () => splash.watch() });
       return { ok: true, warnings: r.warnings };
     } catch (e) { splash.close(); return { ok: false, error: e.message }; }
   });

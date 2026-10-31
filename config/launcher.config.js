@@ -54,14 +54,20 @@ module.exports = {
   // Video de introduccion antes de abrir la interfaz.
   intro: { video: 'intro/summer_intro.mp4', skippable: true },
 
-  // Pantalla de carga previa a entrar a Minecraft (fondo negro + logo).
+  // Pantalla de carga propia: tapa la roja de Mojang y la gris de Minecraft hasta que el juego abre.
   loadingScreen: {
     logo: 'loading/loading_screen_logo.png',
+    // Pantalla nueva a pantalla completa: copia tu imagen a assets/loading/ y pon aqui su nombre
+    // (ej. 'loading/pantalla_nueva.png'). Con null se usa fondo + logo de arriba.
+    image: null,
+    showBar: true,      // barra animada abajo
+    showText: true,     // texto "Cargando Minecraft…" (en modo imagen conviene false si ya lo trae)
     background: '#000000',
     minMs: 2500,
-    minHoldMs: 12000,   // minimo que se queda tapando Minecraft mientras carga
-    maxHoldMs: 60000,   // tope: se quita aunque no detecte que Minecraft cargo
-    graceMs: 1500,      // pausa extra antes de quitarla
+    minimizeGame: true, // mientras carga, Minecraft queda minimizado (no se ven la roja ni la gris)
+    minHoldMs: 20000,   // minimo que se queda tapando Minecraft
+    maxHoldMs: 90000,   // tope: se quita aunque no detecte que Minecraft cargo
+    graceMs: 1200,      // pausa extra antes de quitarla
     gameTitle: 'Summer Launcher', // titulo que se pone a la ventana de Minecraft
   },
 
@@ -76,7 +82,10 @@ module.exports = {
 
   // Minecraft Bedrock: null = deteccion automatica. Para forzar la carpeta com.mojang
   // pon la ruta completa aqui.
-  bedrock: { comMojangOverride: null },
+  bedrock: {
+    comMojangOverride: null,
+    closeRunningGame: true, // si Minecraft ya esta abierto, se cierra para que cargue los packs de la instancia
+  },
 
   // Inyectables (clientes tipo Flarial). Las instancias los referencian por id.
   injectors: {
