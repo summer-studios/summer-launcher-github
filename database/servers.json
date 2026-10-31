@@ -1,7 +1,7 @@
 {
   "_ayuda": "IP y puerto de cada instancia (la clave es el 'id' de la instancia). Edita este archivo en GitHub o usa el programa admin/. El launcher lo lee cada vez que abre/actualiza y NUNCA muestra la IP al jugador. Si 'ip' esta vacia, esa instancia solo abre Minecraft.",
   "servers": {
-    "squadrock-z": { "ip": "", "port": 19132 },
+    "squadrock-z": { "ip": "mc.zestian.co", "port": 19132 },
     "sleeplands-hardcore": { "ip": "", "port": 19132 }
   }
 }

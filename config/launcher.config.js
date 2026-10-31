@@ -59,6 +59,10 @@ module.exports = {
     logo: 'loading/loading_screen_logo.png',
     background: '#000000',
     minMs: 2500,
+    minHoldMs: 12000,   // minimo que se queda tapando Minecraft mientras carga
+    maxHoldMs: 60000,   // tope: se quita aunque no detecte que Minecraft cargo
+    graceMs: 1500,      // pausa extra antes de quitarla
+    gameTitle: 'Summer Launcher', // titulo que se pone a la ventana de Minecraft
   },
 
   // Enlaces del menu lateral y del pie.

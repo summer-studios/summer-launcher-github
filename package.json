@@ -18,7 +18,8 @@
     "appId": "studio.summer.launcher",
     "productName": "Summer Launcher",
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/logos/icon.ico"
     },
     "files": [
       "src/**/*",

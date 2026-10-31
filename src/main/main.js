@@ -14,6 +14,7 @@ const avatar = require('./profile/avatar');
 const instances = require('./instances/instance-manager');
 const bedrock = require('./game/bedrock');
 const { launch } = require('./game/launch');
+const splash = require('./game/splash');
 
 let win;
 let user = null; // { gamertag, xuid, skinUrl, javaChecked }
@@ -57,7 +58,7 @@ function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = nu
 function createWindow() {
   win = new BrowserWindow({
     width: 1180, height: 680, minWidth: 940, minHeight: 560,
-    title: config.name, backgroundColor: '#000000', autoHideMenuBar: true, show: false,
+    title: config.name, icon: paths.asset('logos', 'icon.png'), backgroundColor: '#000000', autoHideMenuBar: true, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false, autoplayPolicy: 'no-user-gesture-required',
@@ -111,10 +112,12 @@ function registerIpc() {
     if (!user || !inst) return { ok: false, error: 'Instancia no encontrada' };
     await refreshAll(); // permisos e IP al dia justo antes de entrar
     if (inst.access !== 'public' && !db.canAccess(user.gamertag, inst.id)) return { ok: false, error: 'Tu cuenta no tiene acceso a esta instancia' };
+    splash.show(); // tapa las pantallas de arranque de Minecraft con la del launcher
     try {
       const r = await launch(inst, (pct, msg) => win.webContents.send('launch:progress', { pct, msg }));
+      splash.finishWhenReady();
       return { ok: true, warnings: r.warnings };
-    } catch (e) { return { ok: false, error: e.message }; }
+    } catch (e) { splash.close(); return { ok: false, error: e.message }; }
   });
 
   ipcMain.handle('settings:get', () => {
