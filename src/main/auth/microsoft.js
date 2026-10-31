@@ -118,9 +118,11 @@ async function javaSkinUrl(xblToken) {
 
 async function finalize(tokens) {
   const prof = await xboxProfile(tokens.access_token);
-  const skinUrl = (await javaSkinUrl(prof.xblToken)) || (await bedrockSkinUrl(prof.xuid));
+  const javaSkin = await javaSkinUrl(prof.xblToken);
+  const skinUrl = javaSkin || (await bedrockSkinUrl(prof.xuid));
   saveRefresh(tokens.refresh_token);
-  return { gamertag: prof.gamertag, xuid: prof.xuid, skinUrl };
+  // javaChecked: ya se consulto la cuenta Java de esta persona (avatar.js no vuelve a buscar por nombre)
+  return { gamertag: prof.gamertag, xuid: prof.xuid, skinUrl, javaChecked: true };
 }
 
 // ---- Sesion persistente (refresh token cifrado con el sistema) ----

@@ -9,13 +9,15 @@ const msAuth = require('./auth/microsoft');
 const gtAuth = require('./auth/gamertag');
 const auth = () => (config.auth && config.auth.mode === 'microsoft' ? msAuth : gtAuth);
 const db = require('./database/access-db');
+const serversDb = require('./database/servers-db');
 const avatar = require('./profile/avatar');
 const instances = require('./instances/instance-manager');
 const bedrock = require('./game/bedrock');
 const { launch } = require('./game/launch');
 
 let win;
-let user = null; // { gamertag, xuid, skinUrl }
+let user = null; // { gamertag, xuid, skinUrl, javaChecked }
+let pollTimer = null;
 
 const url = (...p) => pathToFileURL(paths.asset(...p)).href;
 const devTag = () => process.env.SUMMER_DEV_GAMERTAG || config.devGamertag;
@@ -24,10 +26,33 @@ async function sessionView() {
   await db.registerLogin(user.gamertag, user.xuid);
   return {
     gamertag: user.gamertag,
-    avatar: await avatar.resolve(user.gamertag, user.skinUrl),
+    avatar: await avatar.resolve(user),
     instances: instances.listFor(user.gamertag),
   };
 }
+
+// Lee de nuevo quien puede entrar (access.json) y a que IP (servers.json).
+const refreshAll = () => Promise.all([db.refresh(), serversDb.refresh()]);
+
+// Tiempo real: mientras el launcher esta abierto se vuelve a leer la base de datos cada
+// pocos segundos; si cambia la lista de instancias de este usuario, la interfaz se actualiza sola.
+function startPolling() {
+  stopPolling();
+  const secs = Math.max(5, Number(config.database && config.database.pollSeconds) || 20);
+  let last = user ? JSON.stringify(instances.listFor(user.gamertag)) : null;
+  pollTimer = setInterval(async () => {
+    if (!user || !win || win.isDestroyed()) return;
+    try {
+      await refreshAll();
+      instances.loadFolder();
+      const list = instances.listFor(user.gamertag);
+      const key = JSON.stringify(list);
+      if (key !== last) win.webContents.send('instances:updated', list);
+      last = key;
+    } catch (e) { console.warn('[poll]', e.message); }
+  }, secs * 1000);
+}
+function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
 
 function createWindow() {
   win = new BrowserWindow({
@@ -54,26 +79,29 @@ function registerIpc() {
   }));
 
   ipcMain.handle('auth:restore', async () => {
-    await db.refresh();
+    await refreshAll();
     instances.loadFolder();
     if (devTag()) user = { gamertag: devTag(), xuid: 'dev', skinUrl: null };
     else user = await auth().restore();
-    return user ? sessionView() : null;
+    if (!user) return null;
+    startPolling();
+    return sessionView();
   });
 
   ipcMain.handle('auth:login', async (_e, gamertag) => {
     try {
-      await db.refresh();
+      await refreshAll();
       user = devTag() ? { gamertag: devTag(), xuid: 'dev', skinUrl: null } : await auth().login(gamertag);
+      startPolling();
       return { ok: true, session: await sessionView() };
     } catch (e) { return { ok: false, error: e.message }; }
   });
 
-  ipcMain.handle('auth:logout', () => { auth().logout(); user = null; return true; });
+  ipcMain.handle('auth:logout', () => { auth().logout(); user = null; stopPolling(); return true; });
 
   ipcMain.handle('instances:list', async () => {
     if (!user) return [];
-    await db.refresh();
+    await refreshAll();
     instances.loadFolder();
     return instances.listFor(user.gamertag);
   });
@@ -81,6 +109,7 @@ function registerIpc() {
   ipcMain.handle('instance:launch', async (_e, id) => {
     const inst = instances.get(id);
     if (!user || !inst) return { ok: false, error: 'Instancia no encontrada' };
+    await refreshAll(); // permisos e IP al dia justo antes de entrar
     if (inst.access !== 'public' && !db.canAccess(user.gamertag, inst.id)) return { ok: false, error: 'Tu cuenta no tiene acceso a esta instancia' };
     try {
       const r = await launch(inst, (pct, msg) => win.webContents.send('launch:progress', { pct, msg }));

@@ -1,0 +1,82 @@
+SUMMER ADMIN - controla en tiempo real quien entra y a que IP
+==============================================================
+
+Este programa NO va dentro del launcher (el instalador no lo incluye). Lo usas tu, desde tu PC,
+para editar dos archivos que el launcher lee por internet:
+
+  database/access.json    quien (gamertag) puede entrar a cada instancia
+  database/servers.json   IP y puerto de cada instancia
+
+Los launchers abiertos releen esos archivos cada 20 segundos (config.database.pollSeconds)
+y SIEMPRE justo antes de abrir una instancia. Si le das o quitas acceso a alguien, su lista de
+instancias cambia sola; si cambias una IP, el siguiente "JUGAR" ya entra a la nueva.
+
+-------------------------------------------------------------
+1) Preparacion (una sola vez)
+-------------------------------------------------------------
+- Instala Node.js 18 o superior: https://nodejs.org
+- Crea un token en GitHub: Settings > Developer settings > Personal access tokens >
+  Fine-grained tokens > Generate new token.
+    * Repository access: solo "summer-launcher-github"
+    * Permissions > Repository permissions > Contents: Read and write
+- Copia admin/admin.config.example.json a admin/admin.config.json y pega tu token en "githubToken".
+  (admin.config.json esta en .gitignore: nunca se sube. No compartas ese token.)
+
+-------------------------------------------------------------
+2) Panel web (lo mas facil)
+-------------------------------------------------------------
+Doble clic en  admin/abrir-panel.bat   (o:  node admin/summer-admin.js panel)
+Se abre http://127.0.0.1:4580 en tu navegador, solo accesible desde tu PC:
+  - Tabla de usuarios con casillas por instancia ("Todas" = '*').
+  - Agregar / eliminar usuarios.
+  - IP y puerto de cada instancia (vacio = esa instancia solo abre Minecraft).
+Cada cambio se guarda al instante en GitHub (queda como un commit "admin: ...").
+
+-------------------------------------------------------------
+3) Linea de comandos
+-------------------------------------------------------------
+  node admin/summer-admin.js list
+  node admin/summer-admin.js add "Alcrn MC" squadrock-z            (suma a lo que ya tenia)
+  node admin/summer-admin.js add "Alcrn MC" sleeplands-hardcore
+  node admin/summer-admin.js set Pepe squadrock-z sleeplands-hardcore   (deja EXACTAMENTE esas)
+  node admin/summer-admin.js add Guyhat23 "*"                      (todas las instancias)
+  node admin/summer-admin.js remove Pepe squadrock-z               (le quita esa instancia)
+  node admin/summer-admin.js remove Pepe                           (lo elimina por completo)
+  node admin/summer-admin.js server squadrock-z play.miserver.com 19132
+  node admin/summer-admin.js server squadrock-z -                  (borra la IP)
+
+Opciones:  --local  edita database/*.json de tu copia del repo (sin GitHub; luego haz commit y push)
+           --force  permite ids de instancia que no existen en config/instances
+
+Tambien puedes editar database/access.json y database/servers.json a mano en la web de GitHub.
+
+-------------------------------------------------------------
+4) IMPORTANTE: repo privado
+-------------------------------------------------------------
+El launcher de tus jugadores descarga esos archivos SIN iniciar sesion en GitHub, desde
+raw.githubusercontent.com. Si el repo es PRIVADO, esa descarga da 404 y el launcher usara solo la
+copia que lleva incluida (la edicion remota no funcionaria). Opciones:
+  a) Repo publico: funciona tal cual, pero entonces access.json y servers.json (con la IP) se
+     pueden leer publicamente. Mejor no dejar la IP real ahi.
+  b) Gist secreto (recomendado si el repo es privado o no quieres exponer la IP):
+       1. Crea un gist SECRETO en https://gist.github.com con dos archivos: access.json y servers.json
+          (copia el contenido de database/access.json y database/servers.json).
+       2. En admin/admin.config.json pon  "backend": "gist", "gistId": "<id del gist>"
+          y da al token el permiso "Gists: Read and write".
+       3. En config/launcher.config.js pon las URL raw SIN el hash de commit, por ejemplo:
+            database.remoteUrl = 'https://gist.githubusercontent.com/<usuario>/<gistId>/raw/access.json'
+            servers.remoteUrl  = 'https://gist.githubusercontent.com/<usuario>/<gistId>/raw/servers.json'
+       4. Recompila el launcher (compilar.bat) y reparte la nueva version una vez.
+     Un gist secreto no aparece en buscadores; solo lo ve quien tenga el enlace.
+
+-------------------------------------------------------------
+5) Sobre la IP "oculta" y la seguridad
+-------------------------------------------------------------
+- El launcher nunca muestra la IP: ni en pantalla, ni en mensajes de error, ni en el progreso.
+  Se guarda cifrada en la cache local del usuario y solo la usa el proceso que abre el juego.
+- Aun asi, el juego tiene que conectarse a esa IP, asi que alguien con conocimientos (capturando
+  trafico de red) siempre podria descubrirla. Proteccion real: pon el servidor con WHITELIST /
+  allowlist (en Bedrock: allowlist.json) y, si puedes, un firewall o proxy delante.
+- Lo mismo con la lista de usuarios: el launcher solo oculta las instancias a quien no esta en la
+  lista. Quien ya conozca la IP podria entrar a mano, a menos que el servidor tenga allowlist.
+  Quitar a alguien de access.json NO lo expulsa si ya esta jugando.

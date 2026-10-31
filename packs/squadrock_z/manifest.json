@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Squadrock Z UI",
+    "description": "Menu principal de Squadrock Z",
+    "uuid": "2f50d349-3250-5909-b292-13f4ca895756",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      20,
+      0
+    ]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "2a31bfd3-2ceb-5009-9913-b957cd14af2f",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    }
+  ]
+}

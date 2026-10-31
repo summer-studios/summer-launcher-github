@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summer Admin</title>
+<style>
+  :root { --bg:#0a0710; --panel:#0f0a18; --line:#231a35; --text:#f1ecfa; --muted:#8d82a6; --accent:#8b5cf6; --accent2:#a78bfa; --dark:#5b21b6; --ok:#4ade80; --err:#ff7a90; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; padding: 0 0 60px; }
+  .top { height: 8px; background: linear-gradient(90deg, var(--dark), var(--accent) 55%, var(--accent2)); }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 20px; }
+  h1 { font-size: 30px; font-weight: 300; color: var(--accent); } h1 b { font-weight: 800; color: var(--accent2); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 34px 0 12px; }
+  .src { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.c, th.c { text-align: center; }
+  input[type=text], input[type=number] { height: 36px; padding: 0 10px; background: #15101f; border: 1px solid #2b2140; border-radius: 4px; color: var(--text); font: inherit; outline: 0; }
+  input[type=text]:focus, input[type=number]:focus { border-color: var(--accent); }
+  input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 4px; padding: 8px 16px; color: #fff; background: linear-gradient(135deg, var(--accent), var(--dark)); }
+  button:hover { filter: brightness(1.12); } button:disabled { opacity: .5; cursor: default; }
+  button.ghost { background: none; border: 1px solid #3a2d57; color: var(--accent2); }
+  button.del { background: none; color: var(--err); padding: 4px 8px; }
+  .add, .srv { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 14px; }
+  .srv { border-bottom: 1px solid var(--line); } .srv:last-child { border-bottom: 0; }
+  .srv .id { width: 210px; font-weight: 600; }
+  #toast { position: fixed; right: 20px; bottom: 20px; max-width: 420px; padding: 12px 16px; background: #1b1230; border: 1px solid var(--ok); border-radius: 4px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; } #toast.err { border-color: var(--err); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .empty { padding: 18px 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="top"></div>
+<main>
+  <h1>SUMMER <b>ADMIN</b></h1>
+  <p class="src" id="source">Cargando…</p>
+
+  <h2>Quién puede entrar</h2>
+  <div class="card"><table id="users"></table></div>
+  <div class="card add" style="margin-top:12px">
+    <input type="text" id="newTag" placeholder="Gamertag nuevo" maxlength="32" autocomplete="off" spellcheck="false">
+    <button id="addBtn">Agregar usuario</button>
+    <span class="muted">Se agrega sin accesos: marca las instancias en la tabla.</span>
+  </div>
+
+  <h2>Servidores (IP y puerto)</h2>
+  <div class="card" id="servers"></div>
+  <p class="muted" style="margin-top:10px">Los cambios se guardan al instante y los launchers abiertos los reciben en unos segundos. La IP nunca se muestra a los jugadores.</p>
+</main>
+<div id="toast"></div>
+
+<script>
+const TOKEN = '__TOKEN__';
+const $ = (s) => document.querySelector(s);
+let state = null;
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = '', 3500);
+}
+async function api(path, body) {
+  const res = await fetch('/api/' + path, { method: body ? 'POST' : 'GET', headers: { 'x-admin-token': TOKEN, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error');
+  return data;
+}
+async function act(path, body, okMsg) {
+  try { state = await api(path, body); render(); toast(okMsg); } catch (e) { toast(e.message, true); }
+}
+const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
+
+function render() {
+  $('#source').textContent = 'Guardando en: ' + state.source;
+  const t = $('#users'); t.innerHTML = '';
+  const head = el('tr', {}, el('th', { textContent: 'Gamertag' }));
+  for (const i of state.instances) head.append(el('th', { className: 'c', textContent: i.name }));
+  head.append(el('th', { className: 'c', textContent: 'Todas' }), el('th'));
+  t.append(head);
+  if (!state.users.length) t.append(el('tr', {}, el('td', { className: 'empty', colSpan: state.instances.length + 3, textContent: 'Todavía no hay usuarios.' })));
+  for (const u of state.users) {
+    const list = u.instances || [], all = list.includes('*');
+    const row = el('tr', {}, el('td', { textContent: u.gamertag }));
+    const save = (next) => act('user', { gamertag: u.gamertag, instances: next }, `Acceso de ${u.gamertag} guardado`);
+    for (const i of state.instances) {
+      const cb = el('input', { type: 'checkbox', checked: all || list.includes(i.id), disabled: all });
+      cb.onchange = () => save(state.instances.filter((x) => (x.id === i.id ? cb.checked : list.includes(x.id))).map((x) => x.id));
+      row.append(el('td', { className: 'c' }, cb));
+    }
+    const allCb = el('input', { type: 'checkbox', checked: all });
+    allCb.onchange = () => save(allCb.checked ? ['*'] : []);
+    const del = el('button', { className: 'del', textContent: 'Eliminar' });
+    del.onclick = () => { if (confirm(`¿Quitar a ${u.gamertag} por completo?`)) act('user/delete', { gamertag: u.gamertag }, `${u.gamertag} eliminado`); };
+    row.append(el('td', { className: 'c' }, allCb), el('td', {}, del));
+    t.append(row);
+  }
+
+  const s = $('#servers'); s.innerHTML = '';
+  for (const i of state.instances) {
+    const cur = state.servers[i.id] || { ip: '', port: 19132 };
+    const ip = el('input', { type: 'text', value: cur.ip, placeholder: 'IP o dominio (vacío = solo abre Minecraft)', size: 34, spellcheck: false });
+    const port = el('input', { type: 'number', value: cur.port, min: 1, max: 65535, style: 'width:100px' });
+    const btn = el('button', { textContent: 'Guardar' });
+    btn.onclick = () => act('server', { id: i.id, ip: ip.value, port: port.value }, `Servidor de ${i.name} guardado`);
+    s.append(el('div', { className: 'srv' }, el('span', { className: 'id', textContent: i.name }), ip, port, btn));
+  }
+}
+
+$('#addBtn').onclick = () => {
+  const tag = $('#newTag').value.trim();
+  if (!tag) return;
+  $('#newTag').value = '';
+  act('user', { gamertag: tag, instances: [] }, `${tag} agregado (sin accesos todavía)`);
+};
+$('#newTag').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#addBtn').click(); });
+
+api('state').then((d) => { state = d; render(); }).catch((e) => { $('#source').textContent = e.message; toast(e.message, true); });
+</script>
+</body>
+</html>

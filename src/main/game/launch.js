@@ -6,6 +6,7 @@ const paths = require('../paths');
 const bedrock = require('./bedrock');
 const packs = require('./packs');
 const injector = require('./injector');
+const serversDb = require('../database/servers-db');
 
 async function launch(instance, progress = () => {}) {
   const found = bedrock.locate();
@@ -18,13 +19,17 @@ async function launch(instance, progress = () => {}) {
   const installed = instance.resourcePacks.map((p) => packs.installResourcePack(found.comMojang, paths.inRoot(p)));
   packs.setGlobalPacks(found.comMojang, installed);
 
-  progress(60, instance.server ? `Abriendo Minecraft → ${instance.server.ip}` : 'Abriendo Minecraft…');
-  const uri = instance.server
-    ? `minecraft://connect/?serverUrl=${encodeURIComponent(instance.server.ip)}&serverPort=${instance.server.port}`
+  // La IP vive solo aqui (proceso principal): no se muestra en mensajes, errores ni logs.
+  const server = serversDb.get(instance.id, instance.server);
+  progress(60, server ? 'Entrando al servidor…' : 'Abriendo Minecraft…');
+  const uri = server
+    ? `minecraft://connect/?serverUrl=${encodeURIComponent(server.ip)}&serverPort=${server.port}`
     : 'minecraft://';
-  await shell.openExternal(uri);
+  try { await shell.openExternal(uri); }
+  catch { throw new Error('No se pudo abrir Minecraft. Comprueba que esté instalado.'); } // sin la URI: llevaria la IP
 
   const warnings = [];
+  if (!server) warnings.push('Esta instancia todavía no tiene servidor configurado; solo se abrió Minecraft.');
   for (const id of instance.injectors) {
     const def = config.injectors[id];
     if (!def) { warnings.push(`Inyectable desconocido: ${id}`); continue; }
