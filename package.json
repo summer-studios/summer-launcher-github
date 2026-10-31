@@ -1,0 +1,36 @@
+{
+  "name": "summer-launcher",
+  "version": "0.1.0",
+  "description": "Summer Launcher - launcher custom para Minecraft Bedrock",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.18"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "studio.summer.launcher",
+    "productName": "Summer Launcher",
+    "win": {
+      "target": "nsis"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      "assets",
+      "config",
+      "database",
+      "mods",
+      "packs",
+      "thumbnails"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+// Flujo completo para abrir una instancia:
+// localizar Minecraft -> preparar carpetas -> instalar packs globales -> abrir juego (+IP) -> inyectar.
+const { shell } = require('electron');
+const config = require('../config');
+const paths = require('../paths');
+const bedrock = require('./bedrock');
+const packs = require('./packs');
+const injector = require('./injector');
+
+async function launch(instance, progress = () => {}) {
+  const found = bedrock.locate();
+  if (!found) throw new Error('No se encontró Minecraft Bedrock. Instálalo o indica la carpeta com.mojang en Configuración.');
+
+  progress(10, 'Preparando carpetas del juego…');
+  bedrock.ensureStructure(found.comMojang);
+
+  progress(30, 'Instalando packs de recursos globales…');
+  const installed = instance.resourcePacks.map((p) => packs.installResourcePack(found.comMojang, paths.inRoot(p)));
+  packs.setGlobalPacks(found.comMojang, installed);
+
+  progress(60, instance.server ? `Abriendo Minecraft → ${instance.server.ip}` : 'Abriendo Minecraft…');
+  const uri = instance.server
+    ? `minecraft://connect/?serverUrl=${encodeURIComponent(instance.server.ip)}&serverPort=${instance.server.port}`
+    : 'minecraft://';
+  await shell.openExternal(uri);
+
+  const warnings = [];
+  for (const id of instance.injectors) {
+    const def = config.injectors[id];
+    if (!def) { warnings.push(`Inyectable desconocido: ${id}`); continue; }
+    progress(80, `Inyectando ${def.name}…`);
+    const r = await injector.inject(def.dll);
+    if (!r.ok) warnings.push(`${def.name}: ${r.error}`);
+  }
+  progress(100, 'Listo');
+  return { warnings };
+}
+
+module.exports = { launch };

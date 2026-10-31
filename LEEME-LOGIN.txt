@@ -1,0 +1,13 @@
+LOGIN CON MICROSOFT (gratis, se hace una sola vez)
+
+1. Entra a https://portal.azure.com con tu cuenta Microsoft (si no tienes suscripcion, no importa, no se cobra nada).
+2. Busca "Registros de aplicaciones" (App registrations) > "Nuevo registro".
+3. Nombre: Summer Launcher.
+   Tipos de cuenta: "Solo cuentas Microsoft personales" (o "Cuentas en cualquier directorio y cuentas personales").
+   URI de redireccion: elige "Cliente publico/nativo (movil y escritorio)" y escribe:  http://localhost
+4. Registrar. En la pagina de la app copia el "Id. de aplicacion (cliente)".
+5. En "Autenticacion" > "Configuracion avanzada", activa "Permitir flujos de cliente publico" = Si. Guardar.
+6. Pega ese ID en config/launcher.config.js en microsoft.clientId.
+
+Listo: el boton abre el navegador, inicias sesion, dice "Ya puedes volver al launcher" y entra con tu gamertag.
+Si Microsoft dice que la app no esta aprobada para Xbox/Minecraft, pega aqui el mensaje exacto.

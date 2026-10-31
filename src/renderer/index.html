@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Summer Launcher</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Video de introduccion (antes de abrir la interfaz) -->
+  <div id="intro" class="overlay">
+    <video id="introVideo" playsinline></video>
+    <span id="skipHint">Clic para omitir</span>
+  </div>
+
+  <!-- Inicio de sesion -->
+  <section id="login" class="screen hidden">
+    <img id="loginLogo" alt="Summer Studio">
+    <div id="gtBox" class="gtbox hidden">
+      <input id="gtInput" type="text" placeholder="Tu usuario de Minecraft Bedrock" maxlength="32" autocomplete="off" spellcheck="false">
+      <button id="gtBtn" class="primary">Entrar</button>
+    </div>
+    <button id="loginBtn" class="primary hidden">
+      <svg viewBox="0 0 23 23" width="18" height="18"><path fill="#f25022" d="M1 1h10v10H1z"/><path fill="#7fba00" d="M12 1h10v10H12z"/><path fill="#00a4ef" d="M1 12h10v10H1z"/><path fill="#ffb900" d="M12 12h10v10H12z"/></svg>
+      Iniciar sesión con Microsoft
+    </button>
+    <p id="loginError" class="error"></p>
+  </section>
+
+  <!-- Aplicacion principal -->
+  <div id="app" class="hidden">
+    <aside id="sidebar">
+      <button id="collapse" title="Contraer menú">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      <div class="profile">
+        <div id="avatar" class="avatar"></div>
+        <h2 id="username"></h2>
+      </div>
+
+      <nav>
+        <button data-action="skin">
+          <svg viewBox="0 0 24 24"><path d="M8 3 3 6l2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg><span>Editar skin</span>
+        </button>
+        <button data-action="settings">
+          <svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm8.2 5.2-.2-1.7 1.9-1.5-1.9-3.3-2.3.9a7 7 0 0 0-1.5-.9L15.8 4h-3.6l-.4 2.2a7 7 0 0 0-1.5.9l-2.3-.9-1.9 3.3 1.9 1.5-.2 1.7.2 1.7-1.9 1.5 1.9 3.3 2.3-.9c.5.4 1 .7 1.5.9l.4 2.2h3.6l.4-2.2c.5-.2 1-.5 1.5-.9l2.3.9 1.9-3.3-1.9-1.5z"/></svg><span>Configuración</span>
+        </button>
+        <button data-action="help">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:#a79bc4"><path d="M9.2 9.2a2.9 2.9 0 1 1 4.1 2.6c-.8.4-1.3 1-1.3 1.8"/><path d="M12 17.2h.01"/></svg><span>Ayuda y comentarios</span>
+        </button>
+        <button data-action="logout">
+          <svg viewBox="0 0 24 24"><path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Cerrar sesión</span>
+        </button>
+      </nav>
+
+      <footer>
+        <img id="studioLogo" alt="Summer Studio">
+        <div class="legal">
+          <a data-link="terms">Términos del servicio</a> · <a data-link="privacy">Política de privacidad</a> ·
+          <a data-link="licenses">Licencias de terceros</a>
+        </div>
+      </footer>
+    </aside>
+
+    <main>
+      <div class="topbar"></div>
+      <header>
+        <span class="tab">INSTANCIAS</span>
+        <label class="search">
+          <span class="icon"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></span>
+          <input id="search" type="text" placeholder="Buscar" autocomplete="off">
+        </label>
+      </header>
+
+      <!-- Vista: instancias -->
+      <section id="viewInstances" class="view">
+        <h1><span class="light">DISPONIBLES</span> <span class="bold">INSTANCIAS</span></h1>
+        <div id="grid" class="grid"></div>
+        <p id="empty" class="muted hidden">No hay instancias disponibles para tu cuenta todavía.</p>
+      </section>
+
+      <!-- Vista: configuracion -->
+      <section id="viewSettings" class="view hidden">
+        <h1><span class="light">CONFIG</span><span class="bold">URACIÓN</span></h1>
+        <div class="card">
+          <div class="row"><span class="muted">Minecraft Bedrock</span><b id="setKind">—</b></div>
+          <div class="row"><span class="muted">Carpeta com.mojang</span><code id="setPath">no encontrada</code></div>
+          <div class="row"><span class="muted">Base de datos</span><b id="setDb">—</b></div>
+          <div class="row"><span class="muted">Versión del launcher</span><b id="setVer">—</b></div>
+          <div class="row stack">
+            <span class="muted">Forzar otra carpeta com.mojang (opcional)</span>
+            <div class="inline"><input id="setOverride" type="text" placeholder="C:\Users\...\games\com.mojang"><button id="saveOverride" class="primary small">Guardar</button></div>
+          </div>
+          <button id="openFolder" class="ghost">Abrir carpeta del juego</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Pantalla de carga antes de entrar a Minecraft (fondo negro) -->
+  <div id="loading" class="overlay hidden">
+    <img id="loadingLogo" alt="">
+    <div class="bar"><i id="loadingBar"></i></div>
+    <p id="loadingMsg"></p>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
