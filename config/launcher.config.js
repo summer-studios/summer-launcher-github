@@ -8,15 +8,27 @@ module.exports = {
   // Tu repo de GitHub. De aqui se descarga la base de datos de acceso.
   github: {
     owner: 'summer-studios',
-    repo: 'summer-launcher',
+    repo: 'summer-launcher-github',
     branch: 'main',
   },
 
   // Base de datos de acceso (database/access.json).
   // Si GitHub no responde, se usa la copia local incluida en el launcher.
+  // Se vuelve a leer cada 'pollSeconds' mientras el launcher esta abierto, y SIEMPRE justo
+  // antes de abrir una instancia: asi los cambios de acceso se aplican casi en tiempo real.
+  // Edita la lista con el programa admin/ (ver admin/LEEME-ADMIN.txt) o a mano en GitHub.
   database: {
     file: 'database/access.json',
     remoteUrl: null, // null = se arma solo con la seccion github de arriba
+    pollSeconds: 20,
+  },
+
+  // IP y puerto de cada instancia (database/servers.json). Archivo aparte para cambiarlas
+  // facil, tambien de forma remota. Si tu repo es PRIVADO, GitHub no deja leer el archivo
+  // sin iniciar sesion: pon aqui la URL "raw" de un repo publico de datos o de un gist secreto.
+  servers: {
+    file: 'database/servers.json',
+    remoteUrl: null, // null = misma ruta de GitHub que la base de datos de acceso
   },
 
   // Registro de usuarios que inician sesion (opcional).

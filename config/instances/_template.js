@@ -11,8 +11,10 @@ module.exports = {
 
   access: 'database',            // 'database' = solo gamertags autorizados | 'public' = todos
 
-  // IP a la que se redirige al jugador al abrir el juego (null = solo abre Minecraft)
-  server: { ip: 'play.ejemplo.com', port: 19132 },
+  // La IP NO se pone aqui: se escribe en database/servers.json con el mismo 'id' de arriba
+  // (asi se puede cambiar de forma remota y nunca se ve en el launcher).
+  // Opcional: respaldo local por si servers.json no tiene esta instancia.
+  // server: { ip: 'play.ejemplo.com', port: 19132 },
 
   // Packs de recursos GLOBALES: se instalan y se equipan al entrar al juego.
   // Carpeta con manifest.json, o archivo .mcpack / .zip, dentro de /packs

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('summer', {
   logout: () => ipcRenderer.invoke('auth:logout'),
   listInstances: () => ipcRenderer.invoke('instances:list'),
   launch: (id) => ipcRenderer.invoke('instance:launch', id),
+  onInstancesUpdated: (cb) => ipcRenderer.on('instances:updated', (_e, list) => cb(list)),
   onProgress: (cb) => ipcRenderer.on('launch:progress', (_e, d) => cb(d)),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setOverride: (p) => ipcRenderer.invoke('settings:setOverride', p),

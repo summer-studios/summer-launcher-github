@@ -1,3 +1,6 @@
 node_modules/
 dist/
 *.log
+
+# Programa admin: contiene tu token de GitHub, NUNCA se sube
+admin/admin.config.json
