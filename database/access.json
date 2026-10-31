@@ -1,6 +1,6 @@
 {
   "_ayuda": "Edita este archivo en GitHub. 'instances' lista los ids de instancia permitidos; usa ['*'] para dar acceso a todas. Los gamertags no distinguen mayusculas.",
   "users": [
-    { "gamertag": "Guyhat23", "instances": ["*"] }
+    { "gamertag": "Guyhat23", "instances": [] }
   ]
 }
