@@ -3,6 +3,7 @@
   "locked": false,
   "message": "Launcher bloqueado momentáneamente",
   "instances": {
-    "sleeplands-hardcore": { "locked": true, "message": "Esta instancia está bloqueada por ahora" }
+    "sleeplands-hardcore": { "locked": true, "message": "Esta instancia está bloqueada por ahora" },
+    "squadrock-z": { "locked": true, "message": "Esta instancia está bloqueada por ahora" }
   }
 }
