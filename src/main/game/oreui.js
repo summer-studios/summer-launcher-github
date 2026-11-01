@@ -126,4 +126,6 @@ function apply(packDirs, kind) {
   return { applied: true, source: src };
 }
 
-module.exports = { apply, collect, findGameplayHtml, patchHtml, looksLikeGameplayHtml, INJECT_FILE };
+const needsInjection = (packDir) => !!readInjection(packDir);
+
+module.exports = { apply, collect, needsInjection, findGameplayHtml, patchHtml, looksLikeGameplayHtml, INJECT_FILE };

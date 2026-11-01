@@ -1,6 +1,5 @@
 // Proceso principal de Summer Launcher.
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const path = require('path');
 const { pathToFileURL } = require('url');
 const config = require('./config');
@@ -11,13 +10,11 @@ const gtAuth = require('./auth/gamertag');
 const auth = () => (config.auth && config.auth.mode === 'microsoft' ? msAuth : gtAuth);
 const db = require('./database/access-db');
 const serversDb = require('./database/servers-db');
-const { invalidateGist } = require('./database/remote');
-const lockDb = require('./database/lock-db');
-const skins = require('./skins/skins');
 const avatar = require('./profile/avatar');
 const instances = require('./instances/instance-manager');
 const bedrock = require('./game/bedrock');
-const { launch } = require('./game/launch');
+const { launch, plan: launchPlan } = require('./game/launch');
+const consent = require('./consent');
 const splash = require('./game/splash');
 
 let win;
@@ -37,27 +34,7 @@ async function sessionView() {
 }
 
 // Lee de nuevo quien puede entrar (access.json) y a que IP (servers.json).
-const refreshAll = () => Promise.all([db.refresh(), serversDb.refresh(), lockDb.refresh()]);
-
-// Bloqueo del launcher: se vigila siempre (tambien antes de iniciar sesion) y se avisa a la interfaz.
-let lockTimer = null;
-let lastLock = null;
-function startLockPolling() {
-  const secs = Math.max(2, Number(config.database && config.database.lockPollSeconds) || 4);
-  const tick = async () => {
-    const s = await lockDb.refresh();
-    const key = JSON.stringify(s);
-    if (key !== lastLock) {
-      lastLock = key;
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('lock:updated', s);
-        if (user) win.webContents.send('instances:updated', instances.listFor(user.gamertag)); // tarjetas bloqueadas al momento
-      }
-    }
-  };
-  tick();
-  lockTimer = setInterval(tick, secs * 1000);
-}
+const refreshAll = () => Promise.all([db.refresh(), serversDb.refresh()]);
 
 // Tiempo real: mientras el launcher esta abierto se vuelve a leer la base de datos cada
 // pocos segundos; si cambia la lista de instancias de este usuario, la interfaz se actualiza sola.
@@ -81,7 +58,7 @@ function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = nu
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1180, height: 680, minWidth: 940, minHeight: 560, fullscreen: true, frame: false,
+    width: 1180, height: 680, minWidth: 940, minHeight: 560,
     title: config.name, icon: paths.asset('logos', 'icon.png'), backgroundColor: '#000000', autoHideMenuBar: true, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -90,22 +67,9 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.show());
-  win.on('closed', () => splash.destroy());
-  win.on('focus', () => { lockDb.refresh().then(() => {}).catch(() => {}); if (user) { db.refresh().catch(() => {}); serversDb.refresh().catch(() => {}); } });
 }
 
 function registerIpc() {
-  // Boton de refrescar: vuelve a leer todo ya (sin esperar al siguiente ciclo) y devuelve el estado.
-  ipcMain.handle('app:refresh', async () => {
-    invalidateGist();
-    await refreshAll();
-    instances.loadFolder();
-    const lock = lockDb.get();
-    if (win && !win.isDestroyed()) win.webContents.send('lock:updated', lock);
-    return { lock, instances: user ? instances.listFor(user.gamertag) : null };
-  });
-  ipcMain.handle('win:minimize', () => { if (win && !win.isDestroyed()) win.minimize(); });
-  ipcMain.handle('win:close', () => { if (win && !win.isDestroyed()) win.close(); });
   ipcMain.handle('app:init', () => ({
     name: config.name,
     studio: config.studio,
@@ -147,32 +111,32 @@ function registerIpc() {
   ipcMain.handle('instance:launch', async (_e, id) => {
     const inst = instances.get(id);
     if (!user || !inst) return { ok: false, error: 'Instancia no encontrada' };
-    // Bloqueo: se confirma justo antes de entrar (maximo 1.5 s de espera por la red).
-    const lk = await Promise.race([lockDb.refresh(), delay(500).then(() => lockDb.get())]);
-    const il = (lk.instances || {})[id];
-    if (il && il.locked) { if (win && !win.isDestroyed() && user) win.webContents.send('instances:updated', instances.listFor(user.gamertag)); return { ok: false, error: il.message }; }
-    if (lk.locked) { if (win && !win.isDestroyed()) win.webContents.send('lock:updated', lk); return { ok: false, locked: true, error: lk.message }; }
-    splash.show(); // tapa las pantallas de arranque de Minecraft con la del launcher (aparece al instante)
-    // Permisos e IP al dia justo antes de entrar, sin dejar esperando si la red va lenta (usa la ultima copia).
-    await Promise.race([Promise.all([db.refresh(), serversDb.refresh()]), delay(600)]);
-    if (inst.access !== 'public' && !db.canAccess(user.gamertag, inst.id)) { splash.close(); return { ok: false, error: 'Tu cuenta no tiene acceso a esta instancia' }; }
+    await refreshAll(); // permisos e IP al dia justo antes de entrar
+    if (inst.access !== 'public' && !db.canAccess(user.gamertag, inst.id)) return { ok: false, error: 'Tu cuenta no tiene acceso a esta instancia' };
+    // Permiso para parchear carpetas sensibles (dialogo nativo; solo si la instancia lo necesita).
+    let patch = true;
     try {
-      const r = await launch(inst, (pct, msg) => win.webContents.send('launch:progress', { pct, msg }), { onGameOpened: (o) => splash.watch(o) });
+      const p = launchPlan(inst);
+      if (p.needsPatch) {
+        win.webContents.send('launch:progress', { pct: 2, msg: 'Esperando tu permiso…' });
+        const decision = await consent.ensure(win, p, inst.name);
+        if (decision === 'cancel') return { ok: false, cancelled: true };
+        patch = decision === 'allow';
+      }
+    } catch (e) { return { ok: false, error: `No se pudo preparar el permiso: ${e.message}` }; }
+    splash.show(); // tapa las pantallas de arranque de Minecraft con la del launcher
+    try {
+      const r = await launch(inst, (pct, msg) => win.webContents.send('launch:progress', { pct, msg }), { onGameOpened: () => splash.watch() }, { patch });
       return { ok: true, warnings: r.warnings };
     } catch (e) { splash.close(); return { ok: false, error: e.message }; }
   });
 
-  ipcMain.handle('lock:get', () => Promise.race([lockDb.refresh(), delay(2500).then(() => lockDb.get())]));
-  ipcMain.handle('skins:list', () => skins.view());
-  ipcMain.handle('skins:import', () => skins.pickAndImport(win));
-  ipcMain.handle('skins:select', (_e, id) => skins.select(id));
-  ipcMain.handle('skins:remove', (_e, id) => skins.remove(id));
-
   ipcMain.handle('settings:get', () => {
     const found = bedrock.locate();
-    return { comMojang: found && found.comMojang, kind: found && found.kind, override: settings.get().comMojangOverride || '', db: db.info(), version: app.getVersion() };
+    return { comMojang: found && found.comMojang, kind: found && found.kind, override: settings.get().comMojangOverride || '', db: db.info(), version: app.getVersion(), consent: consent.status() };
   });
   ipcMain.handle('settings:setOverride', (_e, p) => { settings.set({ comMojangOverride: p || null }); return true; });
+  ipcMain.handle('consent:revoke', () => consent.revoke()); // revocar si; conceder solo desde el dialogo nativo
   ipcMain.handle('settings:openFolder', () => { const f = bedrock.locate(); if (f) shell.openPath(f.comMojang); return !!f; });
 
   ipcMain.handle('link:open', (_e, key) => {
@@ -181,5 +145,5 @@ function registerIpc() {
   });
 }
 
-app.whenReady().then(() => { registerIpc(); createWindow(); startLockPolling(); splash.prewarm(); });
+app.whenReady().then(() => { registerIpc(); createWindow(); });
 app.on('window-all-closed', () => app.quit());

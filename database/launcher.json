@@ -1,5 +1,15 @@
 {
+<<<<<<< HEAD
   "_ayuda": "Bloqueo del launcher. Con 'locked': true nadie puede entrar y se muestra 'message'. Se cambia desde el panel admin (o el comando 'lock'). Al ponerlo en false se entra con normalidad.",
   "locked": false,
   "message": "Launcher bloqueado momentáneamente"
+=======
+  "_ayuda": "Con 'locked': true nadie puede entrar y se muestra 'message'.",
+  "locked": false,
+  "message": "Launcher bloqueado momentáneamente",
+  "instances": {
+    "sleeplands-hardcore": { "locked": true, "message": "Esta instancia está bloqueada por ahora" },
+    "squadrock-z": { "locked": true, "message": "Esta instancia está bloqueada por ahora" }
+  }
+>>>>>>> b9d305ff635b46399ddb65a21421a74b6d2128f6
 }
