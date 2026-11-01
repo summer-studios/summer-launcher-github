@@ -1,0 +1,5 @@
+{
+  "css": ["/hbui/video-player.css"],
+  "js": ["/hbui/video-player.js"],
+  "videos": true
+}

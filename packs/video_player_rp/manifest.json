@@ -1,0 +1,17 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Video Player (RP)",
+    "description": "Reproductor de video en Ore UI (hbui). Requiere gameplay.html parcheado, ver README",
+    "uuid": "f5f7d3c7-fae0-4149-b9bc-f44113e56798",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 0]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "d241fd37-bd74-420d-adb8-aa94402b6e83",
+      "version": [1, 0, 0]
+    }
+  ]
+}

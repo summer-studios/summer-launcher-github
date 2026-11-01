@@ -19,35 +19,9 @@ function copyDir(src, dest) {
   fs.cpSync(src, dest, { recursive: true });
 }
 
-const fpFile = () => path.join(paths.userData(), 'pack-fingerprints.json');
-
-// Huella rapida del pack (cantidad de archivos, tamaño y fecha): si no cambio, no se vuelve a copiar.
-function fingerprint(src) {
-  let n = 0, size = 0, newest = 0;
-  const walk = (p) => {
-    const st = fs.statSync(p);
-    if (st.isDirectory()) { for (const f of fs.readdirSync(p)) walk(path.join(p, f)); return; }
-    n++; size += st.size; newest = Math.max(newest, st.mtimeMs);
-  };
-  walk(src);
-  return `${n}:${size}:${Math.round(newest)}`;
-}
-
-// src: carpeta del pack, o archivo .mcpack/.zip. Devuelve { uuid, version, name }.
-function installResourcePack(comMojang, src) {
-  const fps = readJson(fpFile(), {});
-  const fp = fingerprint(src);
-  const hit = fps[src];
-  if (hit && hit.fp === fp && fs.existsSync(path.join(comMojang, 'resource_packs', `summer_${hit.uuid}`, 'manifest.json'))) {
-    return { uuid: hit.uuid, version: hit.version, name: hit.name }; // ya instalado y sin cambios: se salta la copia
-  }
-  const info = copyPack(comMojang, src);
-  fps[src] = { fp, ...info };
-  try { fs.mkdirSync(paths.userData(), { recursive: true }); fs.writeFileSync(fpFile(), JSON.stringify(fps)); } catch { /* sin cache */ }
-  return info;
-}
-
-function copyPack(comMojang, src) {
+// src: carpeta del pack, o archivo .mcpack/.zip. Se copia a <com.mojang>/<subfolder>/summer_<uuid>.
+// Devuelve { uuid, version, name, dir }.
+function installPack(comMojang, src, subfolder) {
   const tmp = path.join(paths.userData(), 'tmp-pack');
   let folder = src;
   if (fs.statSync(src).isFile()) {
@@ -58,9 +32,40 @@ function copyPack(comMojang, src) {
   const manifest = readJson(path.join(folder, 'manifest.json'), null);
   if (!manifest || !manifest.header || !manifest.header.uuid) throw new Error(`manifest.json invalido en ${src}`);
   const { uuid, version, name } = manifest.header;
-  copyDir(folder, path.join(comMojang, 'resource_packs', `summer_${uuid}`));
+  const dir = path.join(comMojang, subfolder, `summer_${uuid}`);
+  copyDir(folder, dir);
   fs.rmSync(tmp, { recursive: true, force: true });
-  return { uuid, version, name };
+  return { uuid, version, name, dir };
+}
+
+const installResourcePack = (comMojang, src) => installPack(comMojang, src, 'resource_packs');
+const installBehaviorPack = (comMojang, src) => installPack(comMojang, src, 'behavior_packs');
+
+// Activa un behavior pack en los mundos locales cuyo nombre (levelname.txt) este en `names`.
+// Un behavior pack NO puede ser global: Minecraft solo lo carga por mundo (y en un servidor lo pone el servidor).
+// Devuelve los nombres de los mundos donde quedo activado.
+function activateBehaviorPackInWorlds(roots, bp, names) {
+  const wanted = (names || []).map((n) => String(n).trim().toLowerCase());
+  const done = [];
+  if (!wanted.length) return done;
+  for (const root of roots.globalRoots) {
+    const worlds = path.join(root, 'minecraftWorlds');
+    let dirs = [];
+    try { dirs = fs.readdirSync(worlds); } catch { continue; }
+    for (const d of dirs) {
+      const wdir = path.join(worlds, d);
+      let levelName = d;
+      try { levelName = fs.readFileSync(path.join(wdir, 'levelname.txt'), 'utf8').replace(/^\uFEFF/, '').trim(); } catch { /* usa la carpeta */ }
+      if (!wanted.includes(levelName.toLowerCase())) continue;
+      const file = path.join(wdir, 'world_behavior_packs.json');
+      const current = readJson(file, []);
+      const list = Array.isArray(current) ? current : [];
+      if (!list.some((e) => e.pack_id === bp.uuid)) list.push({ pack_id: bp.uuid, version: bp.version });
+      fs.writeFileSync(file, JSON.stringify(list, null, 2));
+      done.push(levelName);
+    }
+  }
+  return done;
 }
 
 // Reemplaza SOLO los packs que puso Summer; los que el usuario activo a mano no se tocan.
@@ -93,4 +98,4 @@ function setGlobalPacks(roots, packs) {
   fs.writeFileSync(managedFile(), JSON.stringify(packs.map((p) => p.uuid)));
 }
 
-module.exports = { installResourcePack, setGlobalPacks };
+module.exports = { installResourcePack, installBehaviorPack, activateBehaviorPackInWorlds, setGlobalPacks };

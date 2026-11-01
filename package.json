@@ -31,7 +31,9 @@
       "database",
       "mods",
       "packs",
-      "thumbnails"
+      "thumbnails",
+      "tools",
+      "videos"
     ]
   }
 }

@@ -1,0 +1,11 @@
+VIDEOS DEL REPRODUCTOR (Ore UI)
+===============================
+Pon aqui tus videos .webm o .mkv (maximo 8). En cada arranque de una instancia el launcher:
+  - convierte los .mkv a WebM (VP8/VP9 + Vorbis, lo unico que reproduce Ore UI) y guarda el resultado en cache;
+  - los copia al pack video_player_rp (hbui/videos);
+  - regenera la lista del behavior pack (/play N y video aleatorio al entrar).
+
+Para convertir .mkv hace falta ffmpeg: copia ffmpeg.exe en tools/ffmpeg/ o instalalo en el PATH.
+Los videos del addon original (video1.webm, video2.webm, video3.webm) se copian aqui tal cual.
+Pesos grandes (>50 MB) pueden fallar: Ore UI carga el video entero en memoria.
+Video propio de una instancia: pon `videosDir: 'videos/mi-instancia'` en su archivo de config/instances/.
