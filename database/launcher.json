@@ -1,1 +1,1 @@
-{ "_ayuda": "Con 'locked': true nadie puede entrar y se muestra 'message'.", "locked": true, "message": "Launcher bloqueado momentáneamente" }
+{ "_ayuda": "Con 'locked': true nadie puede entrar y se muestra 'message'.", "locked": false, "message": "Launcher bloqueado momentáneamente" }
