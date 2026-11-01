@@ -35,6 +35,8 @@ function locate() {
   return hit ? { comMojang: hit.dir, kind: hit.kind } : null;
 }
 
+function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
+
 function ensureStructure(comMojang) {
   for (const f of SUBFOLDERS) fs.mkdirSync(path.join(comMojang, f), { recursive: true });
 }
@@ -77,4 +79,4 @@ async function closeIfRunning() {
   return true;
 }
 
-module.exports = { locate, locateAll, closeIfRunning, ensureStructure, SUBFOLDERS };
+module.exports = { locate, locateAll, closeIfRunning, ensureStructure, ensureDir, SUBFOLDERS };

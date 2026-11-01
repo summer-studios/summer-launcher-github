@@ -1,0 +1,5 @@
+{
+  "_ayuda": "Bloqueo del launcher. Con 'locked': true nadie puede entrar y se muestra 'message'. Se cambia desde el panel admin (o el comando 'lock'). Al ponerlo en false se entra con normalidad.",
+  "locked": false,
+  "message": "Launcher bloqueado momentáneamente"
+}

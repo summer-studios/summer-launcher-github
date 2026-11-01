@@ -23,3 +23,8 @@ Minecraft Java de la cuenta; y si no tiene Java, de su skin de Bedrock.
 
 ## Desarrollo
 `probar.bat` para abrirlo, `compilar.bat` para generar el instalador. Login Microsoft: `LEEME-LOGIN.txt`.
+
+## Novedades
+- **Pantalla de carga**: se queda hasta que Minecraft deja de mostrar la roja/gris (config `loadingScreen`, log en `%APPDATA%\summer-launcher\splash-debug.log`).
+- **Skins**: menú «Editar skin» -> importar PNG, elegir; se instala como skin pack antes de abrir el juego.
+- **Bloqueo**: `database/launcher.json` (`locked`), se cambia desde el panel admin.

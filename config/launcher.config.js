@@ -23,6 +23,12 @@ module.exports = {
     pollSeconds: 20,
   },
 
+  // Bloqueo del launcher (database/launcher.json): se activa desde el panel admin.
+  lock: {
+    file: 'database/launcher.json',
+    remoteUrl: null, // null = misma ruta de GitHub que la base de datos de acceso
+  },
+
   // IP y puerto de cada instancia (database/servers.json). Archivo aparte para cambiarlas
   // facil, tambien de forma remota. Si tu repo es PRIVADO, GitHub no deja leer el archivo
   // sin iniciar sesion: pon aqui la URL "raw" de un repo publico de datos o de un gist secreto.
@@ -64,10 +70,16 @@ module.exports = {
     showText: true,     // texto "Cargando Minecraft…" (en modo imagen conviene false si ya lo trae)
     background: '#000000',
     minMs: 2500,
-    minimizeGame: true, // mientras carga, Minecraft queda minimizado (no se ven la roja ni la gris)
-    minHoldMs: 20000,   // minimo que se queda tapando Minecraft
-    maxHoldMs: 90000,   // tope: se quita aunque no detecte que Minecraft cargo
-    graceMs: 1200,      // pausa extra antes de quitarla
+    // La pantalla se queda hasta que Minecraft YA NO muestra la roja ni la gris de carga (lo detecta
+    // mirando la pantalla; la ventana del launcher no sale en esa captura). Necesita Windows 10 (2004) o 11.
+    detect: 'screen',   // 'screen' = vigila la pantalla | 'timer' = solo por tiempo (usa fallbackHoldMs)
+    minimizeGame: false, // true minimiza Minecraft, pero entonces solo se puede usar 'timer'
+    minHoldMs: 6000,    // minimo que se queda tapando Minecraft
+    postLoadMs: 2500,   // tiempo extra tapando una vez que dejo de verse la gris (entrar al menu/mundo)
+    serverJoinMs: 7000, // extra si la instancia entra a un servidor (conectando...)
+    fallbackHoldMs: 35000, // si no se puede vigilar la pantalla, se quita despues de este tiempo
+    maxHoldMs: 120000,  // tope absoluto: se quita aunque no detecte nada
+    graceMs: 800,       // pausa extra antes de quitarla
     gameTitle: 'Summer Launcher', // titulo que se pone a la ventana de Minecraft
   },
 

@@ -19,8 +19,35 @@ function copyDir(src, dest) {
   fs.cpSync(src, dest, { recursive: true });
 }
 
+const fpFile = () => path.join(paths.userData(), 'pack-fingerprints.json');
+
+// Huella rapida del pack (cantidad de archivos, tamaño y fecha): si no cambio, no se vuelve a copiar.
+function fingerprint(src) {
+  let n = 0, size = 0, newest = 0;
+  const walk = (p) => {
+    const st = fs.statSync(p);
+    if (st.isDirectory()) { for (const f of fs.readdirSync(p)) walk(path.join(p, f)); return; }
+    n++; size += st.size; newest = Math.max(newest, st.mtimeMs);
+  };
+  walk(src);
+  return `${n}:${size}:${Math.round(newest)}`;
+}
+
 // src: carpeta del pack, o archivo .mcpack/.zip. Devuelve { uuid, version, name }.
 function installResourcePack(comMojang, src) {
+  const fps = readJson(fpFile(), {});
+  const fp = fingerprint(src);
+  const hit = fps[src];
+  if (hit && hit.fp === fp && fs.existsSync(path.join(comMojang, 'resource_packs', `summer_${hit.uuid}`, 'manifest.json'))) {
+    return { uuid: hit.uuid, version: hit.version, name: hit.name }; // ya instalado y sin cambios: se salta la copia
+  }
+  const info = copyPack(comMojang, src);
+  fps[src] = { fp, ...info };
+  try { fs.mkdirSync(paths.userData(), { recursive: true }); fs.writeFileSync(fpFile(), JSON.stringify(fps)); } catch { /* sin cache */ }
+  return info;
+}
+
+function copyPack(comMojang, src) {
   const tmp = path.join(paths.userData(), 'tmp-pack');
   let folder = src;
   if (fs.statSync(src).isFile()) {

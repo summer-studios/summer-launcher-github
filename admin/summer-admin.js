@@ -10,6 +10,7 @@
 //    node admin/summer-admin.js set <gamertag> <inst...|*>  deja EXACTAMENTE esas instancias
 //    node admin/summer-admin.js remove <gamertag> [inst...] quita instancias (o al usuario entero)
 //    node admin/summer-admin.js server <inst> <ip> [puerto] cambia la IP ('-' para borrarla)
+//    node admin/summer-admin.js lock on [mensaje]           bloquea el launcher (o: lock off para abrirlo)
 //    Opciones: --local  edita los archivos del repo en tu PC (sin GitHub; luego haz commit/push)
 //
 //  Sin dependencias: solo Node 18 o superior. El token de GitHub NUNCA va en el launcher.
@@ -57,6 +58,7 @@ function loadConfig() {
 const FILES = {
   access: (launcherCfg.database && launcherCfg.database.file) || 'database/access.json',
   servers: (launcherCfg.servers && launcherCfg.servers.file) || 'database/servers.json',
+  lock: (launcherCfg.lock && launcherCfg.lock.file) || 'database/launcher.json',
 };
 
 // Instancias definidas en config/instances (ignora las que empiezan con "_").
@@ -154,6 +156,8 @@ async function mutate(store, file, message, fn, fallback) {
 // ---------------------------------------------------------------- operaciones
 const ACCESS_FALLBACK = { _ayuda: "Edita con el programa admin/ o a mano. 'instances' lista los ids permitidos; ['*'] = todas.", users: [] };
 const SERVERS_FALLBACK = { _ayuda: 'IP y puerto por instancia.', servers: {} };
+const LOCK_MESSAGE = 'Launcher bloqueado momentáneamente';
+const LOCK_FALLBACK = { _ayuda: "Con 'locked': true nadie puede entrar y se muestra 'message'.", locked: false, message: LOCK_MESSAGE };
 
 function checkTag(tag) {
   const t = String(tag || '').trim();
@@ -172,7 +176,8 @@ const ops = {
   state: async (store) => {
     const a = (await store.read(FILES.access)).json || ACCESS_FALLBACK;
     const s = (await store.read(FILES.servers)).json || SERVERS_FALLBACK;
-    return { users: a.users || [], servers: s.servers || {}, instances: knownInstances(), source: store.label };
+    const l = (await store.read(FILES.lock)).json || LOCK_FALLBACK;
+    return { users: a.users || [], servers: s.servers || {}, instances: knownInstances(), source: store.label, lock: { locked: l.locked === true, message: l.message || LOCK_MESSAGE } };
   },
   setUser: (store, tag, instances, mode = 'set', force = false) => {
     tag = checkTag(tag); instances = checkInstances(instances, force);
@@ -197,6 +202,14 @@ const ops = {
       });
       return d;
     }, ACCESS_FALLBACK);
+  },
+  setLock: (store, locked, message) => {
+    const msg = String(message || '').trim().slice(0, 300) || LOCK_MESSAGE;
+    return mutate(store, FILES.lock, locked ? 'admin: launcher bloqueado' : 'admin: launcher desbloqueado', (d) => {
+      d.locked = locked === true;
+      d.message = msg;
+      return d;
+    }, LOCK_FALLBACK);
   },
   setServer: (store, id, ip, port, force = false) => {
     id = String(id || '').trim(); ip = String(ip || '').trim(); port = Number(port) || 19132;
@@ -237,6 +250,7 @@ function startPanel(cfg, store) {
       if (req.method === 'GET' && url.pathname === '/api/state') return send(200, await ops.state(store));
       if (req.method === 'POST' && url.pathname === '/api/user') { await run(() => ops.setUser(store, body.gamertag, body.instances, 'set')); return send(200, await ops.state(store)); }
       if (req.method === 'POST' && url.pathname === '/api/user/delete') { await run(() => ops.removeUser(store, body.gamertag)); return send(200, await ops.state(store)); }
+      if (req.method === 'POST' && url.pathname === '/api/lock') { await run(() => ops.setLock(store, body.locked === true, body.message)); return send(200, await ops.state(store)); }
       if (req.method === 'POST' && url.pathname === '/api/server') { await run(() => ops.setServer(store, body.id, body.ip, body.port)); return send(200, await ops.state(store)); }
       return send(404, { error: 'no existe' });
     } catch (e) { return send(400, { error: e.message }); }
@@ -257,6 +271,7 @@ function startPanel(cfg, store) {
 function printState(s) {
   console.log(`Origen: ${s.source}\n\nUSUARIOS (${s.users.length})`);
   for (const u of s.users) console.log(`  ${u.gamertag.padEnd(24)} ${(u.instances || []).join(', ') || '(sin acceso)'}`);
+  console.log(`\nLAUNCHER: ${s.lock.locked ? 'BLOQUEADO — ' + s.lock.message : 'abierto'}`);
   console.log('\nSERVIDORES');
   for (const i of s.instances) { const v = s.servers[i.id]; console.log(`  ${i.id.padEnd(24)} ${v && v.ip ? `${v.ip}:${v.port}` : '(sin IP)'}`); }
 }
@@ -270,7 +285,7 @@ async function main() {
   const [cmd = 'panel', ...rest] = args;
   const cfg = loadConfig();
 
-  if (!['panel', 'list', 'add', 'set', 'remove', 'server'].includes(cmd)) {
+  if (!['panel', 'list', 'add', 'set', 'remove', 'server', 'lock'].includes(cmd)) {
     console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     process.exit(cmd === 'help' ? 0 : 1);
   }
@@ -287,6 +302,12 @@ async function main() {
     if (!rest.length) throw new Error('Uso: remove <gamertag> [instancia...]');
     await ops.removeUser(store, rest[0], rest.slice(1), force);
     return console.log(`OK: ${rest[0]} ${rest.length > 1 ? 'pierde ' + rest.slice(1).join(', ') : 'eliminado'}`);
+  }
+  if (cmd === 'lock') {
+    const mode = String(rest[0] || '').toLowerCase();
+    if (!['on', 'off'].includes(mode)) throw new Error('Uso: lock on [mensaje] | lock off');
+    await ops.setLock(store, mode === 'on', rest.slice(1).join(' '));
+    return console.log(mode === 'on' ? 'OK: launcher BLOQUEADO' : 'OK: launcher desbloqueado');
   }
   if (cmd === 'server') {
     if (rest.length < 2) throw new Error('Uso: server <instancia> <ip|-> [puerto]');

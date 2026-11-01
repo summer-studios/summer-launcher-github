@@ -80,3 +80,11 @@ copia que lleva incluida (la edicion remota no funcionaria). Opciones:
 - Lo mismo con la lista de usuarios: el launcher solo oculta las instancias a quien no esta en la
   lista. Quien ya conozca la IP podria entrar a mano, a menos que el servidor tenga allowlist.
   Quitar a alguien de access.json NO lo expulsa si ya esta jugando.
+
+BLOQUEAR EL LAUNCHER
+--------------------
+En el panel, seccion "Bloqueo del launcher": escribe el mensaje y pulsa "Bloquear launcher".
+Los launchers abiertos muestran "Launcher bloqueado momentáneamente" en unos segundos y nadie puede
+entrar a Minecraft. Pulsa "Desbloquear launcher" y vuelve todo a la normalidad, sin reiniciar.
+Por linea de comandos:  node admin/summer-admin.js lock on [mensaje]   /   lock off
+El estado vive en database/launcher.json (igual que access.json y servers.json).

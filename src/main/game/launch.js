@@ -1,12 +1,14 @@
 // Flujo completo para abrir una instancia:
 // localizar Minecraft -> preparar carpetas -> instalar packs globales -> abrir juego (+IP) -> inyectar.
 const { shell } = require('electron');
+const path = require('path');
 const config = require('../config');
 const paths = require('../paths');
 const bedrock = require('./bedrock');
 const packs = require('./packs');
 const injector = require('./injector');
 const serversDb = require('../database/servers-db');
+const skins = require('../skins/skins');
 
 async function launch(instance, progress = () => {}, hooks = {}) {
   const roots = bedrock.locateAll();
@@ -18,10 +20,15 @@ async function launch(instance, progress = () => {}, hooks = {}) {
 
   progress(10, 'Preparando carpetas del juego…');
   bedrock.ensureStructure(roots.packRoot);
+  bedrock.ensureDir(path.join(roots.packRoot, 'skin_packs'));
 
   progress(30, 'Activando packs de la instancia…');
   const installed = instance.resourcePacks.map((p) => packs.installResourcePack(roots.packRoot, paths.inRoot(p)));
   packs.setGlobalPacks(roots, installed);
+
+  // La skin elegida en el launcher queda instalada ANTES de abrir el juego.
+  let skinName = null;
+  try { skinName = skins.applyToGame(roots.packRoot); } catch (e) { console.warn('[skins]', e.message); }
 
   // La IP vive solo aqui (proceso principal): no se muestra en mensajes, errores ni logs.
   const server = serversDb.get(instance.id, instance.server);
@@ -32,7 +39,7 @@ async function launch(instance, progress = () => {}, hooks = {}) {
   try { await shell.openExternal(uri); }
   catch { throw new Error('No se pudo abrir Minecraft. Comprueba que esté instalado.'); } // sin la URI: llevaria la IP
 
-  if (hooks.onGameOpened) hooks.onGameOpened(); // aqui empieza a vigilar y a esconder las pantallas de Minecraft
+  if (hooks.onGameOpened) hooks.onGameOpened({ server: !!server }); // aqui empieza a vigilar y a esconder las pantallas de Minecraft
 
   const warnings = [];
   if (wasOpen) warnings.push('Minecraft ya estaba abierto: se reinició para aplicar los packs de la instancia.');

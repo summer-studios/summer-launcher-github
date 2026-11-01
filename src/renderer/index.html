@@ -80,6 +80,22 @@
         <p id="empty" class="muted hidden">No hay instancias disponibles para tu cuenta todavía.</p>
       </section>
 
+      <!-- Vista: skins -->
+      <section id="viewSkins" class="view hidden">
+        <h1><span class="light">MIS</span> <span class="bold">SKINS</span></h1>
+        <div class="skin-tools">
+          <button id="skinImport" class="primary small">Importar skins</button>
+          <button id="skinEditWeb" class="ghost">Editar skin en minecraft.net</button>
+          <span class="muted" id="skinCount"></span>
+        </div>
+        <div id="skinGrid" class="skin-grid"></div>
+        <p id="skinEmpty" class="muted hidden">Todavía no importaste skins. Pulsa «Importar skins» y elige uno o varios archivos PNG (64x64, 64x32 o 128x128).</p>
+        <div id="skinBar" class="skin-bar">
+          <span id="skinBarText" class="muted">Elige una skin</span>
+          <button id="skinChoose" class="primary small" disabled>ELEGIR</button>
+        </div>
+      </section>
+
       <!-- Vista: configuracion -->
       <section id="viewSettings" class="view hidden">
         <h1><span class="light">CONFIG</span><span class="bold">URACIÓN</span></h1>
@@ -103,6 +119,13 @@
     <img id="loadingLogo" alt="">
     <div class="bar"><i id="loadingBar"></i></div>
     <p id="loadingMsg"></p>
+  </div>
+
+  <!-- Launcher bloqueado desde el panel admin -->
+  <div id="locked" class="overlay hidden">
+    <img id="lockedLogo" alt="">
+    <h2>LAUNCHER BLOQUEADO</h2>
+    <p id="lockedMsg"></p>
   </div>
 
   <div id="toast" class="hidden"></div>
