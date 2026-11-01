@@ -11,6 +11,7 @@ const gtAuth = require('./auth/gamertag');
 const auth = () => (config.auth && config.auth.mode === 'microsoft' ? msAuth : gtAuth);
 const db = require('./database/access-db');
 const serversDb = require('./database/servers-db');
+const { invalidateGist } = require('./database/remote');
 const lockDb = require('./database/lock-db');
 const skins = require('./skins/skins');
 const avatar = require('./profile/avatar');
@@ -46,7 +47,13 @@ function startLockPolling() {
   const tick = async () => {
     const s = await lockDb.refresh();
     const key = JSON.stringify(s);
-    if (key !== lastLock) { lastLock = key; if (win && !win.isDestroyed()) win.webContents.send('lock:updated', s); }
+    if (key !== lastLock) {
+      lastLock = key;
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('lock:updated', s);
+        if (user) win.webContents.send('instances:updated', instances.listFor(user.gamertag)); // tarjetas bloqueadas al momento
+      }
+    }
   };
   tick();
   lockTimer = setInterval(tick, secs * 1000);
@@ -88,6 +95,15 @@ function createWindow() {
 }
 
 function registerIpc() {
+  // Boton de refrescar: vuelve a leer todo ya (sin esperar al siguiente ciclo) y devuelve el estado.
+  ipcMain.handle('app:refresh', async () => {
+    invalidateGist();
+    await refreshAll();
+    instances.loadFolder();
+    const lock = lockDb.get();
+    if (win && !win.isDestroyed()) win.webContents.send('lock:updated', lock);
+    return { lock, instances: user ? instances.listFor(user.gamertag) : null };
+  });
   ipcMain.handle('win:minimize', () => { if (win && !win.isDestroyed()) win.minimize(); });
   ipcMain.handle('win:close', () => { if (win && !win.isDestroyed()) win.close(); });
   ipcMain.handle('app:init', () => ({
@@ -133,6 +149,8 @@ function registerIpc() {
     if (!user || !inst) return { ok: false, error: 'Instancia no encontrada' };
     // Bloqueo: se confirma justo antes de entrar (maximo 1.5 s de espera por la red).
     const lk = await Promise.race([lockDb.refresh(), delay(500).then(() => lockDb.get())]);
+    const il = (lk.instances || {})[id];
+    if (il && il.locked) { if (win && !win.isDestroyed() && user) win.webContents.send('instances:updated', instances.listFor(user.gamertag)); return { ok: false, error: il.message }; }
     if (lk.locked) { if (win && !win.isDestroyed()) win.webContents.send('lock:updated', lk); return { ok: false, locked: true, error: lk.message }; }
     splash.show(); // tapa las pantallas de arranque de Minecraft con la del launcher (aparece al instante)
     // Permisos e IP al dia justo antes de entrar, sin dejar esperando si la red va lenta (usa la ultima copia).

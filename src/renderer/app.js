@@ -63,10 +63,10 @@ function renderInstances() {
   grid.innerHTML = '';
   for (const i of list) {
     const el = document.createElement('button');
-    el.className = 'inst';
-    el.innerHTML = `<div class="thumb">${i.thumbnail ? `<img src="${i.thumbnail}" alt="">` : `<b>${i.name[0] || '?'}</b>`}<span class="play">JUGAR</span></div><span class="name"></span>`;
+    el.className = 'inst' + (i.locked ? ' locked' : '');
+    el.innerHTML = `<div class="thumb">${i.thumbnail ? `<img src="${i.thumbnail}" alt="">` : `<b>${i.name[0] || '?'}</b>`}<span class="play">${i.locked ? 'BLOQUEADO' : 'JUGAR'}</span></div><span class="name"></span>`;
     el.querySelector('.name').textContent = i.name;
-    el.addEventListener('click', () => launchInstance(i));
+    el.addEventListener('click', () => (i.locked ? toast(i.lockMessage || 'Esta instancia está bloqueada por ahora', true, 6000) : launchInstance(i)));
     grid.append(el);
   }
   $('#empty').classList.toggle('hidden', list.length > 0);
@@ -235,7 +235,8 @@ function bind() {
 
   document.querySelectorAll('nav [data-action]').forEach((b) => b.addEventListener('click', async () => {
     const a = b.dataset.action;
-    if (a === 'skin') showView('skins');
+    if (a === 'instances') showView('instances');
+    else if (a === 'skin') showView('skins');
     else if (a === 'help') api.openLink('help');
     else if (a === 'settings') showView('settings');
     else if (a === 'logout') $('#confirm').classList.remove('hidden');
@@ -248,6 +249,17 @@ function bind() {
     await api.logout();
     $('#app').classList.add('hidden');
     $('#login').classList.remove('hidden');
+  });
+  $('#wRefresh').addEventListener('click', async () => {
+    const b = $('#wRefresh');
+    if (b.classList.contains('spin')) return;
+    b.classList.add('spin');
+    try {
+      const r = await api.refresh();
+      if (r && r.instances) { instances = r.instances; renderInstances(); }
+      toast('Actualizado');
+    } catch { toast('No se pudo actualizar', true); }
+    setTimeout(() => b.classList.remove('spin'), 600);
   });
   $('#wMin').addEventListener('click', () => api.minimize());
   $('#wClose').addEventListener('click', () => api.closeWindow());

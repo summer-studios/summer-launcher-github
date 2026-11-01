@@ -156,3 +156,12 @@ code { font-size: 12px; color: var(--accent-2); text-align: right; word-break: b
 .confirm .row button { min-width: 110px; padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; justify-content: center; }
 .confirm .ghost { margin-top: 0; background: #f0edf7; color: #17102a; border: 0; }
 .confirm .ghost:hover { background: #e4dff0; }
+
+/* ---------- Refrescar + instancia bloqueada ---------- */
+#winctl button.spin svg { animation: wspin .7s linear infinite; }
+@keyframes wspin { to { transform: rotate(360deg); } }
+.inst.locked .thumb img, .inst.locked .thumb b { filter: grayscale(1) brightness(.55); }
+.inst.locked .thumb::after { opacity: 1; background: linear-gradient(0deg, #000000e6 0%, #00000099 100%); }
+.inst.locked .play { opacity: 1; transform: translate(-50%, 0); background: #3a3347; box-shadow: none; color: #e9e4f5; cursor: not-allowed; }
+.inst.locked:hover { transform: none; }
+.inst.locked:hover .thumb { border-color: var(--line); box-shadow: none; }

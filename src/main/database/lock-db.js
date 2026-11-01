@@ -4,7 +4,7 @@ const config = require('../config');
 const { loadJson } = require('./remote');
 
 const DEFAULT_MESSAGE = 'Launcher bloqueado momentáneamente';
-let state = { locked: false, message: DEFAULT_MESSAGE };
+let state = { locked: false, message: DEFAULT_MESSAGE, instances: {} };
 
 const section = () => config.lock || { file: 'database/launcher.json', remoteUrl: null };
 
@@ -17,7 +17,11 @@ async function refresh() {
       cacheName: 'lock.cache.json',
       valid: (d) => d && typeof d.locked === 'boolean',
     });
-    state = { locked: r.data.locked === true, message: String(r.data.message || DEFAULT_MESSAGE).slice(0, 300) };
+    const inst = {};
+    for (const [id, v] of Object.entries(r.data.instances && typeof r.data.instances === 'object' ? r.data.instances : {})) {
+      if (v && v.locked === true) inst[id] = { locked: true, message: String(v.message || 'Esta instancia está bloqueada por ahora').slice(0, 300) };
+    }
+    state = { locked: r.data.locked === true, message: String(r.data.message || DEFAULT_MESSAGE).slice(0, 300), instances: inst };
   } catch (e) { console.warn('[lock]', e.message); } // si falla todo, se conserva el ultimo estado conocido
   return state;
 }

@@ -24,6 +24,29 @@ function remoteFor(file, remoteUrl) {
   return githubRawUrl(file);
 }
 
+// Lectura del gist por la API de GitHub con ETag: una sola peticion trae los 3 archivos, la API no tiene
+// el retraso de cache de los enlaces raw y las respuestas 304 (sin cambios) no gastan el limite de GitHub.
+let gistSnap = { etag: null, files: null, at: 0, inflight: null };
+function invalidateGist() { gistSnap.at = 0; }
+function gistConfigured() { const gi = config.gist; return !!(gi && gi.id && !String(gi.id).startsWith('TU_')); }
+function gistApi() {
+  if (gistSnap.inflight) return gistSnap.inflight;
+  if (gistSnap.files && Date.now() - gistSnap.at < 1500) return Promise.resolve(gistSnap.files);
+  gistSnap.inflight = (async () => {
+    const headers = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'summer-launcher' };
+    if (gistSnap.etag && gistSnap.files) headers['If-None-Match'] = gistSnap.etag;
+    const res = await fetch(`https://api.github.com/gists/${config.gist.id}`, { headers, signal: AbortSignal.timeout(6000), cache: 'no-store' });
+    if (res.status === 304 && gistSnap.files) { gistSnap.at = Date.now(); return gistSnap.files; }
+    if (!res.ok) throw new Error(`gist API HTTP ${res.status}`);
+    const d = await res.json();
+    const files = {};
+    for (const [name, f] of Object.entries(d.files || {})) if (!f.truncated && typeof f.content === 'string') files[name] = f.content;
+    gistSnap = { etag: res.headers.get('etag'), files, at: Date.now(), inflight: null };
+    return files;
+  })().finally(() => { gistSnap.inflight = null; });
+  return gistSnap.inflight;
+}
+
 // El cache puede ir cifrado con el sistema (DPAPI en Windows): asi el archivo del disco
 // no se puede abrir con el Bloc de notas. Si el cifrado no esta disponible, va en claro.
 function writeCache(file, data, encrypt) {
@@ -42,6 +65,17 @@ async function loadJson(opts) {
   const { file, remoteUrl, cacheName, valid, encryptCache = false } = opts;
   const cacheFile = path.join(paths.userData(), cacheName);
   const url = remoteFor(file, remoteUrl);
+  if (!remoteUrl && gistConfigured()) {
+    try {
+      const files = await gistApi();
+      const text = files[path.basename(file)];
+      if (text == null) throw new Error('archivo no esta en el gist');
+      const data = JSON.parse(text.replace(/^\uFEFF/, ''));
+      if (!valid(data)) throw new Error(`${file} invalido`);
+      try { writeCache(cacheFile, data, encryptCache); } catch (e) { console.warn('[db] no se pudo guardar cache:', e.message); }
+      return { data, source: 'gist-api', syncedAt: Date.now() };
+    } catch (e) { console.warn(`[db] ${file}: gist API no disponible (${e.message}), se usa el enlace raw`); }
+  }
   if (url) {
     try {
       const res = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`, { signal: AbortSignal.timeout(6000), cache: 'no-store' });
@@ -60,4 +94,4 @@ async function loadJson(opts) {
   return { data, source: 'local', syncedAt: null };
 }
 
-module.exports = { loadJson };
+module.exports = { loadJson, invalidateGist };

@@ -194,7 +194,8 @@ async function mutate(store, file, message, fn, fallback) {
 const ACCESS_FALLBACK = { _ayuda: "Edita con el programa admin/ o a mano. 'instances' lista los ids permitidos; ['*'] = todas.", users: [] };
 const SERVERS_FALLBACK = { _ayuda: 'IP y puerto por instancia.', servers: {} };
 const LOCK_MESSAGE = 'Launcher bloqueado momentáneamente';
-const LOCK_FALLBACK = { _ayuda: "Con 'locked': true nadie puede entrar y se muestra 'message'.", locked: false, message: LOCK_MESSAGE };
+const INSTANCE_LOCK_MESSAGE = 'Esta instancia está bloqueada por ahora';
+const LOCK_FALLBACK = { _ayuda: "Con 'locked': true nadie puede entrar y se muestra 'message'. 'instances' bloquea solo una instancia/evento.", locked: false, message: LOCK_MESSAGE, instances: {} };
 
 function checkTag(tag) {
   const t = String(tag || '').trim();
@@ -216,7 +217,17 @@ const ops = {
     const get = async (f) => { const c = store.cache && store.cache.get(f); return (c || await store.read(f)).json; };
     const [a0, s0, l0] = await Promise.all([get(FILES.access), get(FILES.servers), get(FILES.lock)]);
     const a = a0 || ACCESS_FALLBACK, s = s0 || SERVERS_FALLBACK, l = l0 || LOCK_FALLBACK;
-    return { users: a.users || [], servers: s.servers || {}, instances: knownInstances(), source: store.label, lock: { locked: l.locked === true, message: l.message || LOCK_MESSAGE } };
+    return { users: a.users || [], servers: s.servers || {}, instances: knownInstances(), source: store.label, lock: { locked: l.locked === true, message: l.message || LOCK_MESSAGE }, instanceLocks: l.instances && typeof l.instances === 'object' ? l.instances : {} };
+  },
+  setInstanceLock: (store, id, locked, message, force = false) => {
+    id = String(id || '').trim();
+    if (!force && !knownInstances().some((i) => i.id === id)) throw new Error(`Instancia desconocida: ${id}. Disponibles: ${knownInstances().map((i) => i.id).join(', ')}.`);
+    const msg = String(message || '').trim().slice(0, 300);
+    return mutate(store, FILES.lock, `admin: ${id} ${locked ? 'bloqueada' : 'desbloqueada'}`, (d) => {
+      d.instances = d.instances && typeof d.instances === 'object' ? d.instances : {};
+      if (locked) d.instances[id] = { locked: true, message: msg || INSTANCE_LOCK_MESSAGE }; else delete d.instances[id];
+      return d;
+    }, LOCK_FALLBACK);
   },
   setUser: (store, tag, instances, mode = 'set', force = false) => {
     tag = checkTag(tag); instances = checkInstances(instances, force);
@@ -290,6 +301,7 @@ function startPanel(cfg, store) {
       if (req.method === 'POST' && url.pathname === '/api/user') { await run(() => ops.setUser(store, body.gamertag, body.instances, 'set')); return send(200, await ops.state(store)); }
       if (req.method === 'POST' && url.pathname === '/api/user/delete') { await run(() => ops.removeUser(store, body.gamertag)); return send(200, await ops.state(store)); }
       if (req.method === 'POST' && url.pathname === '/api/lock') { await run(() => ops.setLock(store, body.locked === true, body.message)); return send(200, await ops.state(store)); }
+      if (req.method === 'POST' && url.pathname === '/api/instance-lock') { await run(() => ops.setInstanceLock(store, body.id, body.locked === true, body.message)); return send(200, await ops.state(store)); }
       if (req.method === 'POST' && url.pathname === '/api/server') { await run(() => ops.setServer(store, body.id, body.ip, body.port)); return send(200, await ops.state(store)); }
       return send(404, { error: 'no existe' });
     } catch (e) { return send(400, { error: e.message }); }
@@ -325,7 +337,7 @@ async function main() {
   const [cmd = 'panel', ...rest] = args;
   const cfg = loadConfig();
 
-  if (!['panel', 'list', 'add', 'set', 'remove', 'server', 'lock', 'crear-gist'].includes(cmd)) {
+  if (!['panel', 'list', 'add', 'set', 'remove', 'server', 'lock', 'lock-instance', 'crear-gist'].includes(cmd)) {
     console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     process.exit(cmd === 'help' ? 0 : 1);
   }
@@ -353,6 +365,12 @@ async function main() {
     if (!['on', 'off'].includes(mode)) throw new Error('Uso: lock on [mensaje] | lock off');
     await ops.setLock(store, mode === 'on', rest.slice(1).join(' '));
     return console.log(mode === 'on' ? 'OK: launcher BLOQUEADO' : 'OK: launcher desbloqueado');
+  }
+  if (cmd === 'lock-instance') {
+    const mode = String(rest[1] || '').toLowerCase();
+    if (!rest[0] || !['on', 'off'].includes(mode)) throw new Error('Uso: lock-instance <instancia> on [mensaje] | lock-instance <instancia> off');
+    await ops.setInstanceLock(store, rest[0], mode === 'on', rest.slice(2).join(' '), force);
+    return console.log(`OK: ${rest[0]} ${mode === 'on' ? 'BLOQUEADA' : 'desbloqueada'}`);
   }
   if (cmd === 'server') {
     if (rest.length < 2) throw new Error('Uso: server <instancia> <ip|-> [puerto]');

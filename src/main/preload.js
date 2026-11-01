@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('summer', {
   init: () => ipcRenderer.invoke('app:init'),
+  refresh: () => ipcRenderer.invoke('app:refresh'),
   minimize: () => ipcRenderer.invoke('win:minimize'),
   closeWindow: () => ipcRenderer.invoke('win:close'),
   restore: () => ipcRenderer.invoke('auth:restore'),

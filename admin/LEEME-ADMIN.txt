@@ -110,3 +110,12 @@ Genera dist/Summer Admin x.x.x.exe: un solo archivo, sin instalar, sin terminal.
 - Menu (tecla Alt): Recargar, "Crear gist de datos (una vez)", Cambiar token.
 - Usa la config del launcher que tenia la carpeta al compilar (repo, gist). Si cambias
   config/launcher.config.js (por ejemplo al poner el gist), vuelve a compilar el admin.
+
+-------------------------------------------------------------
+7) Bloquear solo una instancia / evento
+-------------------------------------------------------------
+Panel: seccion "Bloquear una instancia / evento" (mensaje opcional + boton Bloquear/Desbloquear).
+Comando:  node admin/summer-admin.js lock-instance squadrock-z on "Empieza a las 8 pm"
+          node admin/summer-admin.js lock-instance squadrock-z off
+La tarjeta muestra "BLOQUEADO" en vez de "JUGAR". El boton de actualizar del launcher (arriba a la
+izquierda) vuelve a leer todo al instante. El bloqueo de todo el launcher sigue existiendo.

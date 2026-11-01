@@ -54,6 +54,10 @@
   </div>
   <p class="muted" style="margin-top:10px">Bloqueado: los launchers abiertos muestran el mensaje en unos segundos y nadie puede entrar. Al desbloquear, vuelve todo a la normalidad sin reiniciar.</p>
 
+  <h2>Bloquear una instancia / evento</h2>
+  <div class="card" id="instLocks"></div>
+  <p class="muted" style="margin-top:10px">La tarjeta de esa instancia muestra «BLOQUEADO» en lugar de «JUGAR» y nadie puede entrar. El resto del launcher sigue funcionando.</p>
+
   <h2>Quién puede entrar</h2>
   <div class="card"><table id="users"></table></div>
   <div class="card add" style="margin-top:12px">
@@ -126,6 +130,18 @@ function render() {
     del.onclick = () => { if (confirm(`¿Quitar a ${u.gamertag} por completo?`)) act('user/delete', { gamertag: u.gamertag }, `${u.gamertag} eliminado`, (s) => { s.users = s.users.filter((y) => y.gamertag !== u.gamertag); }); };
     row.append(el('td', { className: 'c' }, allCb), el('td', {}, del));
     t.append(row);
+  }
+
+  const il = $('#instLocks'); il.innerHTML = '';
+  for (const i of state.instances) {
+    const cur = (state.instanceLocks || {})[i.id];
+    const on = !!(cur && cur.locked);
+    const msg = el('input', { type: 'text', value: on ? cur.message : '', placeholder: 'Mensaje (ej. El evento empieza a las 8 pm)', size: 40, maxLength: 300, spellcheck: false });
+    const st = el('span', { className: 'status ' + (on ? 'on' : 'off'), textContent: on ? '● BLOQUEADA' : '● Abierta', style: 'min-width:110px;font-weight:700' });
+    const btn = el('button', { textContent: on ? 'Desbloquear' : 'Bloquear', className: on ? '' : 'danger' });
+    btn.onclick = () => act('instance-lock', { id: i.id, locked: !on, message: msg.value }, `${i.name} ${on ? 'desbloqueada' : 'BLOQUEADA'}`,
+      (s) => { s.instanceLocks = s.instanceLocks || {}; if (on) delete s.instanceLocks[i.id]; else s.instanceLocks[i.id] = { locked: true, message: msg.value.trim() || 'Esta instancia está bloqueada por ahora' }; });
+    il.append(el('div', { className: 'srv' }, el('span', { className: 'id', textContent: i.name }), st, msg, btn));
   }
 
   const s = $('#servers'); s.innerHTML = '';

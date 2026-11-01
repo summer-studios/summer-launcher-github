@@ -25,7 +25,7 @@ module.exports = {
     file: 'database/access.json',
     remoteUrl: null, // null = se arma solo con la seccion github de arriba
     pollSeconds: 8,
-    lockPollSeconds: 10, // el bloqueo se revisa mas seguido (aplica en menos de ~15 s)
+    lockPollSeconds: 5, // el bloqueo se revisa mas seguido (con la API del gist, casi al instante)
   },
 
   // Bloqueo del launcher (database/launcher.json): se activa desde el panel admin.

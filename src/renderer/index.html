@@ -8,6 +8,7 @@
 <body>
   <!-- Controles de ventana (arriba a la izquierda) -->
   <div id="winctl">
+    <button id="wRefresh" title="Actualizar" aria-label="Actualizar"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5"/></svg></button>
     <button id="wMin" title="Minimizar" aria-label="Minimizar"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
     <button id="wClose" class="close" title="Cerrar" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
   </div>
@@ -58,6 +59,9 @@
       </div>
 
       <nav>
+        <button data-action="instances">
+          <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Instancias</span>
+        </button>
         <button data-action="skin">
           <svg viewBox="0 0 24 24"><path d="M8 3 3 6l2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg><span>Editar skin</span>
         </button>
