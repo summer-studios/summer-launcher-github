@@ -20,7 +20,8 @@ module.exports = {
   database: {
     file: 'database/access.json',
     remoteUrl: null, // null = se arma solo con la seccion github de arriba
-    pollSeconds: 20,
+    pollSeconds: 8,
+    lockPollSeconds: 4, // el bloqueo se revisa mas seguido
   },
 
   // Bloqueo del launcher (database/launcher.json): se activa desde el panel admin.
@@ -74,12 +75,12 @@ module.exports = {
     // mirando la pantalla; la ventana del launcher no sale en esa captura). Necesita Windows 10 (2004) o 11.
     detect: 'screen',   // 'screen' = vigila la pantalla | 'timer' = solo por tiempo (usa fallbackHoldMs)
     minimizeGame: false, // true minimiza Minecraft, pero entonces solo se puede usar 'timer'
-    minHoldMs: 6000,    // minimo que se queda tapando Minecraft
-    postLoadMs: 2500,   // tiempo extra tapando una vez que dejo de verse la gris (entrar al menu/mundo)
-    serverJoinMs: 7000, // extra si la instancia entra a un servidor (conectando...)
-    fallbackHoldMs: 35000, // si no se puede vigilar la pantalla, se quita despues de este tiempo
-    maxHoldMs: 120000,  // tope absoluto: se quita aunque no detecte nada
-    graceMs: 800,       // pausa extra antes de quitarla
+    minHoldMs: 5000,    // minimo que se queda tapando Minecraft
+    postLoadMs: 1500,   // tiempo extra tapando una vez que dejo de verse la gris
+    serverJoinMs: 4000, // extra si la instancia entra a un servidor (conectando...)
+    fallbackHoldMs: 22000, // si no se puede vigilar la pantalla, se quita despues de este tiempo
+    maxHoldMs: 60000,   // tope absoluto
+    graceMs: 500,       // pausa extra antes de quitarla
     gameTitle: 'Summer Launcher', // titulo que se pone a la ventana de Minecraft
   },
 

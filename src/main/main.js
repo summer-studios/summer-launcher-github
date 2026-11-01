@@ -42,7 +42,7 @@ const refreshAll = () => Promise.all([db.refresh(), serversDb.refresh(), lockDb.
 let lockTimer = null;
 let lastLock = null;
 function startLockPolling() {
-  const secs = Math.max(5, Number(config.database && config.database.pollSeconds) || 20);
+  const secs = Math.max(2, Number(config.database && config.database.lockPollSeconds) || 4);
   const tick = async () => {
     const s = await lockDb.refresh();
     const key = JSON.stringify(s);
@@ -83,6 +83,8 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.show());
+  win.on('closed', () => splash.destroy());
+  win.on('focus', () => { lockDb.refresh().then(() => {}).catch(() => {}); if (user) { db.refresh().catch(() => {}); serversDb.refresh().catch(() => {}); } });
 }
 
 function registerIpc() {
@@ -128,11 +130,11 @@ function registerIpc() {
     const inst = instances.get(id);
     if (!user || !inst) return { ok: false, error: 'Instancia no encontrada' };
     // Bloqueo: se confirma justo antes de entrar (maximo 1.5 s de espera por la red).
-    const lk = await Promise.race([lockDb.refresh(), delay(1500).then(() => lockDb.get())]);
+    const lk = await Promise.race([lockDb.refresh(), delay(500).then(() => lockDb.get())]);
     if (lk.locked) { if (win && !win.isDestroyed()) win.webContents.send('lock:updated', lk); return { ok: false, locked: true, error: lk.message }; }
     splash.show(); // tapa las pantallas de arranque de Minecraft con la del launcher (aparece al instante)
     // Permisos e IP al dia justo antes de entrar, sin dejar esperando si la red va lenta (usa la ultima copia).
-    await Promise.race([Promise.all([db.refresh(), serversDb.refresh()]), delay(3500)]);
+    await Promise.race([Promise.all([db.refresh(), serversDb.refresh()]), delay(600)]);
     if (inst.access !== 'public' && !db.canAccess(user.gamertag, inst.id)) { splash.close(); return { ok: false, error: 'Tu cuenta no tiene acceso a esta instancia' }; }
     try {
       const r = await launch(inst, (pct, msg) => win.webContents.send('launch:progress', { pct, msg }), { onGameOpened: (o) => splash.watch(o) });
@@ -159,5 +161,5 @@ function registerIpc() {
   });
 }
 
-app.whenReady().then(() => { registerIpc(); createWindow(); startLockPolling(); });
+app.whenReady().then(() => { registerIpc(); createWindow(); startLockPolling(); splash.prewarm(); });
 app.on('window-all-closed', () => app.quit());

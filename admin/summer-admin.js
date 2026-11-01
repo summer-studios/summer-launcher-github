@@ -104,19 +104,27 @@ function githubClient(cfg) {
 function repoStore(cfg) {
   const gh = githubClient(cfg);
   const enc = (f) => f.split('/').map(encodeURIComponent).join('/');
+  // Copia en memoria (contenido + sha) de cada archivo: guardar un cambio ya no necesita leer antes,
+  // y si alguien lo edito por fuera, GitHub rechaza el sha viejo y se reintenta con lo nuevo.
+  const cache = new Map();
   return {
     label: `GitHub ${cfg.owner}/${cfg.repo}@${cfg.branch}`,
+    cache,
     async read(file) {
+      let r;
       try {
         const d = await gh('GET', `/repos/${cfg.owner}/${cfg.repo}/contents/${enc(file)}?ref=${encodeURIComponent(cfg.branch)}`);
-        return { json: JSON.parse(Buffer.from(d.content, 'base64').toString('utf8').replace(/^﻿/, '')), version: d.sha };
-      } catch (e) { if (e.status === 404) return { json: null, version: null }; throw e; }
+        r = { json: JSON.parse(Buffer.from(d.content, 'base64').toString('utf8').replace(/^﻿/, '')), version: d.sha };
+      } catch (e) { if (e.status === 404) r = { json: null, version: null }; else throw e; }
+      cache.set(file, r);
+      return r;
     },
     async write(file, json, version, message) {
-      await gh('PUT', `/repos/${cfg.owner}/${cfg.repo}/contents/${enc(file)}`, {
+      const d = await gh('PUT', `/repos/${cfg.owner}/${cfg.repo}/contents/${enc(file)}`, {
         message, branch: cfg.branch, sha: version || undefined,
         content: Buffer.from(pretty(json)).toString('base64'),
       });
+      return d && d.content ? d.content.sha : null;
     },
   };
 }
@@ -146,10 +154,18 @@ function makeStore(cfg, local) {
 // Lee -> modifica -> guarda. Si alguien guardo en medio (sha viejo), reintenta sobre lo nuevo.
 async function mutate(store, file, message, fn, fallback) {
   for (let attempt = 0; attempt < 4; attempt++) {
-    const { json, version } = await store.read(file);
-    const next = fn(json || structuredClone(fallback));
-    try { await store.write(file, next, version, message); return next; }
-    catch (e) { if (attempt < 3 && (e.status === 409 || e.status === 422)) continue; throw e; }
+    // Primer intento con la copia en memoria (sin leer de GitHub); si fallo, se lee de nuevo.
+    const cur = (attempt === 0 && store.cache && store.cache.get(file)) || await store.read(file);
+    const next = fn(structuredClone(cur.json || fallback));
+    try {
+      const version = await store.write(file, next, cur.version, message);
+      if (store.cache) store.cache.set(file, { json: next, version });
+      return next;
+    } catch (e) {
+      if (store.cache) store.cache.delete(file);
+      if (attempt < 3 && (e.status === 409 || e.status === 422)) continue;
+      throw e;
+    }
   }
 }
 
@@ -173,10 +189,12 @@ function checkInstances(list, force) {
 }
 
 const ops = {
-  state: async (store) => {
-    const a = (await store.read(FILES.access)).json || ACCESS_FALLBACK;
-    const s = (await store.read(FILES.servers)).json || SERVERS_FALLBACK;
-    const l = (await store.read(FILES.lock)).json || LOCK_FALLBACK;
+  // fresh = true vuelve a leer de GitHub (los 3 archivos a la vez); si no, usa la copia en memoria.
+  state: async (store, fresh = false) => {
+    if (fresh && store.cache) store.cache.clear();
+    const get = async (f) => { const c = store.cache && store.cache.get(f); return (c || await store.read(f)).json; };
+    const [a0, s0, l0] = await Promise.all([get(FILES.access), get(FILES.servers), get(FILES.lock)]);
+    const a = a0 || ACCESS_FALLBACK, s = s0 || SERVERS_FALLBACK, l = l0 || LOCK_FALLBACK;
     return { users: a.users || [], servers: s.servers || {}, instances: knownInstances(), source: store.label, lock: { locked: l.locked === true, message: l.message || LOCK_MESSAGE } };
   },
   setUser: (store, tag, instances, mode = 'set', force = false) => {
@@ -247,7 +265,7 @@ function startPanel(cfg, store) {
     }
     const run = (fn) => { const p = queue.then(fn); queue = p.catch(() => {}); return p; };
     try {
-      if (req.method === 'GET' && url.pathname === '/api/state') return send(200, await ops.state(store));
+      if (req.method === 'GET' && url.pathname === '/api/state') return send(200, await ops.state(store, url.searchParams.get('fresh') === '1'));
       if (req.method === 'POST' && url.pathname === '/api/user') { await run(() => ops.setUser(store, body.gamertag, body.instances, 'set')); return send(200, await ops.state(store)); }
       if (req.method === 'POST' && url.pathname === '/api/user/delete') { await run(() => ops.removeUser(store, body.gamertag)); return send(200, await ops.state(store)); }
       if (req.method === 'POST' && url.pathname === '/api/lock') { await run(() => ops.setLock(store, body.locked === true, body.message)); return send(200, await ops.state(store)); }
@@ -255,6 +273,7 @@ function startPanel(cfg, store) {
       return send(404, { error: 'no existe' });
     } catch (e) { return send(400, { error: e.message }); }
   });
+  ops.state(store, true).catch(() => {}); // precarga los datos mientras se abre el navegador
   server.listen(cfg.port, '127.0.0.1', () => {
     const addr = `http://127.0.0.1:${cfg.port}/`;
     console.log(`Panel listo en ${addr}\nGuardando en: ${store.label}\n(Ctrl+C para cerrar)`);

@@ -83,8 +83,16 @@ async function api(path, body) {
   if (!res.ok) throw new Error(data.error || 'Error');
   return data;
 }
-async function act(path, body, okMsg) {
-  try { state = await api(path, body); render(); toast(okMsg); } catch (e) { toast(e.message, true); }
+// Los cambios se ven al instante en pantalla (optimistic) y se confirman con el servidor.
+async function act(path, body, okMsg, optimistic) {
+  const before = state;
+  if (optimistic) { state = structuredClone(state); optimistic(state); render(); toast(okMsg); }
+  try { state = await api(path, body); render(); if (!optimistic) toast(okMsg); }
+  catch (e) {
+    toast(e.message, true);
+    try { state = await api('state?fresh=1'); } catch { state = before; }
+    render();
+  }
 }
 const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
 
@@ -105,7 +113,8 @@ function render() {
   for (const u of state.users) {
     const list = u.instances || [], all = list.includes('*');
     const row = el('tr', {}, el('td', { textContent: u.gamertag }));
-    const save = (next) => act('user', { gamertag: u.gamertag, instances: next }, `Acceso de ${u.gamertag} guardado`);
+    const save = (next) => act('user', { gamertag: u.gamertag, instances: next }, `Acceso de ${u.gamertag} guardado`,
+      (s) => { const x = s.users.find((y) => y.gamertag === u.gamertag); if (x) x.instances = next; });
     for (const i of state.instances) {
       const cb = el('input', { type: 'checkbox', checked: all || list.includes(i.id), disabled: all });
       cb.onchange = () => save(state.instances.filter((x) => (x.id === i.id ? cb.checked : list.includes(x.id))).map((x) => x.id));
@@ -114,7 +123,7 @@ function render() {
     const allCb = el('input', { type: 'checkbox', checked: all });
     allCb.onchange = () => save(allCb.checked ? ['*'] : []);
     const del = el('button', { className: 'del', textContent: 'Eliminar' });
-    del.onclick = () => { if (confirm(`¿Quitar a ${u.gamertag} por completo?`)) act('user/delete', { gamertag: u.gamertag }, `${u.gamertag} eliminado`); };
+    del.onclick = () => { if (confirm(`¿Quitar a ${u.gamertag} por completo?`)) act('user/delete', { gamertag: u.gamertag }, `${u.gamertag} eliminado`, (s) => { s.users = s.users.filter((y) => y.gamertag !== u.gamertag); }); };
     row.append(el('td', { className: 'c' }, allCb), el('td', {}, del));
     t.append(row);
   }
@@ -125,7 +134,7 @@ function render() {
     const ip = el('input', { type: 'text', value: cur.ip, placeholder: 'IP o dominio (vacío = solo abre Minecraft)', size: 34, spellcheck: false });
     const port = el('input', { type: 'number', value: cur.port, min: 1, max: 65535, style: 'width:100px' });
     const btn = el('button', { textContent: 'Guardar' });
-    btn.onclick = () => act('server', { id: i.id, ip: ip.value, port: port.value }, `Servidor de ${i.name} guardado`);
+    btn.onclick = () => act('server', { id: i.id, ip: ip.value, port: port.value }, `Servidor de ${i.name} guardado`, (s) => { s.servers[i.id] = { ip: ip.value.trim(), port: Number(port.value) || 19132 }; });
     s.append(el('div', { className: 'srv' }, el('span', { className: 'id', textContent: i.name }), ip, port, btn));
   }
 }
@@ -133,13 +142,15 @@ function render() {
 $('#lockBtn').onclick = () => {
   const locking = !(state.lock && state.lock.locked);
   if (locking && !confirm('¿Bloquear el launcher para todos los jugadores?')) return;
-  act('lock', { locked: locking, message: $('#lockMsg').value }, locking ? 'Launcher BLOQUEADO' : 'Launcher desbloqueado');
+  const message = $('#lockMsg').value;
+  act('lock', { locked: locking, message }, locking ? 'Launcher BLOQUEADO' : 'Launcher desbloqueado', (s) => { s.lock = { locked: locking, message: message || 'Launcher bloqueado momentáneamente' }; });
 };
 $('#addBtn').onclick = () => {
   const tag = $('#newTag').value.trim();
   if (!tag) return;
   $('#newTag').value = '';
-  act('user', { gamertag: tag, instances: [] }, `${tag} agregado (sin accesos todavía)`);
+  act('user', { gamertag: tag, instances: [] }, `${tag} agregado (sin accesos todavía)`,
+    (s) => { if (!s.users.some((y) => y.gamertag.toLowerCase() === tag.toLowerCase())) s.users.push({ gamertag: tag, instances: [] }); });
 };
 $('#newTag').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#addBtn').click(); });
 

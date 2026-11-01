@@ -1,7 +1,7 @@
 // Pantalla de carga propia. Tapa las pantallas de arranque de Minecraft (la roja de Mojang y la gris
-// de carga): se mantiene SIEMPRE encima, deja la ventana de Minecraft minimizada mientras carga y,
-// cuando el juego ya cargo, la restaura, quita la pantalla y le pone nombre/icono del launcher.
-const { BrowserWindow, screen, globalShortcut, desktopCapturer } = require('electron');
+// de carga) y se quita cuando el juego ya cargo. La ventana se crea por adelantado (oculta) para que
+// aparezca al instante al pulsar JUGAR.
+const { BrowserWindow, screen, globalShortcut } = require('electron');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const path = require('path');
@@ -10,17 +10,19 @@ const os = require('os');
 const config = require('../config');
 const paths = require('../paths');
 
-let win = null;
-let ps = null;
+let win = null;        // ventana (oculta si esta precalentada)
+let ps = null;         // vigilante: titulo del juego + nombre/icono
+let cap = null;        // vigilante de pantalla (proceso aparte; si falla, solo se pierde la deteccion)
 let keepTop = null;
 let maxTimer = null;
-let sampler = null;
+let fbTimer = null;
 let flagFile = null;
 let tmpDir = null;
+let quitting = false;
 
 const cfg = () => Object.assign({
-  minHoldMs: 6000, postLoadMs: 2500, serverJoinMs: 7000, fallbackHoldMs: 35000, maxHoldMs: 120000, graceMs: 800,
-  gameTitle: 'Summer Launcher', detect: 'screen', minimizeGame: false, image: null, showBar: true, showText: true,
+  minHoldMs: 5000, postLoadMs: 1500, serverJoinMs: 4000, fallbackHoldMs: 22000, maxHoldMs: 60000, graceMs: 500,
+  captureEveryMs: 600, gameTitle: 'Summer Launcher', detect: 'screen', minimizeGame: false, image: null, showBar: true, showText: true,
 }, config.loadingScreen);
 const useCapture = (c) => c.detect !== 'timer' && !c.minimizeGame && process.platform === 'win32';
 
@@ -29,18 +31,17 @@ function log(msg) {
   try { fs.mkdirSync(paths.userData(), { recursive: true }); fs.appendFileSync(logFile(), `${new Date().toISOString()} ${msg}\n`); } catch { /* sin log */ }
 }
 
-function show() {
-  close();
+function build() {
   const c = cfg();
   const b = screen.getPrimaryDisplay().bounds;
-  win = new BrowserWindow({
+  const w = new BrowserWindow({
     x: b.x, y: b.y, width: b.width, height: b.height, frame: false, resizable: false, movable: false,
     skipTaskbar: true, alwaysOnTop: true, show: false, backgroundColor: c.background || '#000000',
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
   });
   const imageFile = c.image ? paths.asset(c.image) : null;
   const useImage = !!imageFile && fs.existsSync(imageFile);
-  win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'splash.html'), {
+  w.loadFile(path.join(__dirname, '..', '..', 'renderer', 'splash.html'), {
     query: {
       logo: pathToFileURL(paths.asset(c.logo)).href,
       image: useImage ? pathToFileURL(imageFile).href : '',
@@ -49,20 +50,28 @@ function show() {
       text: c.showText === false ? '0' : '1',
     },
   });
-  // Con la captura activa, esta ventana no aparece en ella: asi se puede ver que muestra Minecraft debajo.
-  if (useCapture(c)) { try { win.setContentProtection(true); } catch { /* version antigua */ } }
-  win.once('ready-to-show', () => win && win.showInactive());
-  win.on('closed', () => { win = null; globalShortcut.unregister('Escape'); });
+  // Con la vigilancia de pantalla, esta ventana no sale en la captura (se ve lo que hay debajo).
+  if (useCapture(c)) { try { w.setContentProtection(true); } catch { /* version antigua */ } }
+  w.on('closed', () => { if (win === w) win = null; globalShortcut.unregister('Escape'); });
+  return w;
+}
+
+// Crea la ventana oculta por adelantado.
+function prewarm() {
+  if (quitting || (win && !win.isDestroyed())) return;
+  try { win = build(); } catch (e) { log(`prewarm fallo: ${e.message}`); }
+}
+
+function show() {
+  stopTimers();
+  if (!win || win.isDestroyed()) win = build();
+  const w = win;
+  w.setBounds(screen.getPrimaryDisplay().bounds);
   try { globalShortcut.register('Escape', close); } catch { /* salida de emergencia opcional */ }
-  // Minecraft puede subirse por encima al abrir: se vuelve a poner la pantalla arriba constantemente.
-  let n = 0;
-  const raise = () => {
-    if (!win || win.isDestroyed()) return;
-    if (n++ % 20 === 0) win.setAlwaysOnTop(true, 'screen-saver');
-    win.moveTop();
-  };
-  raise();
-  keepTop = setInterval(raise, 50);
+  const reveal = () => { if (!w.isDestroyed()) { w.setAlwaysOnTop(true, 'screen-saver'); w.showInactive(); w.moveTop(); } };
+  if (w.webContents.isLoading()) w.webContents.once('did-finish-load', reveal); else reveal();
+  // Minecraft puede subirse por encima al abrir: se vuelve a poner la pantalla arriba.
+  keepTop = setInterval(() => { if (!w.isDestroyed()) { w.setAlwaysOnTop(true, 'screen-saver'); w.moveTop(); } }, 200);
 }
 
 // Le dice al vigilante que suelte (restaure) la ventana de Minecraft.
@@ -70,20 +79,30 @@ function release() {
   if (flagFile) { try { fs.writeFileSync(flagFile, '1'); } catch { /* sin permiso */ } }
 }
 
-function close() {
-  release();
+function stopTimers() {
   if (keepTop) clearInterval(keepTop);
   keepTop = null;
   if (maxTimer) clearTimeout(maxTimer);
   maxTimer = null;
-  if (sampler) clearInterval(sampler);
-  sampler = null;
-  if (win && !win.isDestroyed()) win.close();
-  win = null;
+  if (fbTimer) clearTimeout(fbTimer);
+  fbTimer = null;
+  if (cap) { try { cap.kill(); } catch { /* ya cerrado */ } }
+  cap = null;
 }
 
-// Vigila Minecraft.Windows: lo mantiene minimizado mientras carga, avisa cuando ya cargo y luego le
-// cambia el titulo y el icono. Usa PowerShell (incluido en Windows), sin instalar nada.
+function close() {
+  release();
+  stopTimers();
+  if (win && !win.isDestroyed()) win.destroy();
+  win = null;
+  globalShortcut.unregister('Escape');
+  if (!quitting) setTimeout(prewarm, 1500); // deja lista la siguiente
+}
+
+function destroy() { quitting = true; close(); stopWatcher(); }
+
+// Vigila Minecraft.Windows: avisa del titulo de la ventana y, cuando cargo, le pone nombre/icono.
+// (Opcional) la mantiene minimizada mientras carga.
 const SCRIPT = String.raw`
 param([string]$Flag,[string]$Icon,[string]$Title,[int]$Minimize,[int]$Seconds)
 Add-Type -TypeDefinition @"
@@ -132,37 +151,57 @@ while ((Get-Date) -lt $end) {
 }
 `;
 
+
+// Lee una miniatura de la pantalla (GDI, sin tocar el juego) y dice si se ve la pantalla roja de Mojang,
+// la gris de carga, negro u otra cosa. Va en un proceso aparte: si falla, solo se pierde la deteccion.
+const CAPTURE = String.raw`
+param([int]$Interval,[int]$Seconds)
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System; using System.Collections.Generic; using System.Drawing; using System.Drawing.Imaging; using System.Runtime.InteropServices;
+public class Cap {
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] static extern int GetSystemMetrics(int i);
+  public static string Kind() {
+    int w = GetSystemMetrics(0), h = GetSystemMetrics(1);
+    using (Bitmap bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb)) {
+      using (Graphics g = Graphics.FromImage(bmp)) { g.CopyFromScreen(0, 0, 0, 0, new Size(w, h), CopyPixelOperation.SourceCopy); }
+      BitmapData d = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+      try {
+        int NX = 48, NY = 27, total = 0;
+        Dictionary<int, long[]> map = new Dictionary<int, long[]>();
+        for (int j = 0; j < NY; j++) for (int i = 0; i < NX; i++) {
+          int x = (int)((i + 0.5) * w / NX), y = (int)((j + 0.5) * h / NY);
+          int off = y * d.Stride + x * 4;
+          int b = Marshal.ReadByte(d.Scan0, off), gr = Marshal.ReadByte(d.Scan0, off + 1), r = Marshal.ReadByte(d.Scan0, off + 2);
+          int key = ((r >> 4) << 8) | ((gr >> 4) << 4) | (b >> 4);
+          long[] e;
+          if (!map.TryGetValue(key, out e)) { e = new long[4]; map[key] = e; }
+          e[0]++; e[1] += r; e[2] += gr; e[3] += b; total++;
+        }
+        long[] top = null;
+        foreach (long[] e in map.Values) if (top == null || e[0] > top[0]) top = e;
+        if ((double)top[0] / total < 0.62) return "otro";
+        double r2 = top[1] / (double)top[0], g2 = top[2] / (double)top[0], b2 = top[3] / (double)top[0];
+        if (r2 > 150 && g2 < 110 && b2 < 120) return "rojo";
+        if (Math.Abs(r2 - g2) <= 16 && Math.Abs(g2 - b2) <= 16) return (r2 + g2 + b2) / 3.0 < 8 ? "negro" : "gris";
+        return "otro";
+      } finally { bmp.UnlockBits(d); }
+    }
+  }
+}
+"@
+[void][Cap]::SetProcessDPIAware()
+$end = (Get-Date).AddSeconds($Seconds)
+while ((Get-Date) -lt $end) {
+  try { [Console]::Out.WriteLine("S|" + [Cap]::Kind()) } catch { [Console]::Out.WriteLine("S|error") }
+  [Console]::Out.Flush()
+  Start-Sleep -Milliseconds $Interval
+}
+`;
+
 function stopWatcher() {
   if (ps) { try { ps.kill(); } catch { /* ya cerrado */ } }
   ps = null;
-}
-
-// ---- Deteccion de la pantalla de carga de Minecraft ----
-// Mira una miniatura de la pantalla (sin la ventana del launcher) y decide si lo que se ve es la pantalla
-// roja de Mojang, la gris de carga o negro (todas son un color casi uniforme con un logo encima).
-// Devuelve 'rojo' | 'gris' | 'negro' | 'otro' (menu, mundo, escritorio) | null si no se pudo capturar.
-async function classifyScreen() {
-  const d = screen.getPrimaryDisplay();
-  const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 64, height: 36 } });
-  const src = sources.find((x) => String(x.display_id) === String(d.id)) || sources[0];
-  if (!src || src.thumbnail.isEmpty()) return null;
-  const { width, height } = src.thumbnail.getSize();
-  const bmp = src.thumbnail.toBitmap(); // BGRA
-  const buckets = new Map();
-  const total = width * height;
-  for (let i = 0; i < total; i++) {
-    const b = bmp[i * 4], g = bmp[i * 4 + 1], r = bmp[i * 4 + 2];
-    const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
-    const e = buckets.get(key);
-    if (e) { e.n++; e.r += r; e.g += g; e.b += b; } else buckets.set(key, { n: 1, r, g, b });
-  }
-  let top = null;
-  for (const e of buckets.values()) if (!top || e.n > top.n) top = e;
-  if (top.n / total < 0.62) return 'otro';
-  const r = top.r / top.n, g = top.g / top.n, b = top.b / top.n;
-  if (r > 150 && g < 110 && b < 120) return 'rojo';
-  if (Math.abs(r - g) <= 16 && Math.abs(g - b) <= 16) return (r + g + b) / 3 < 8 ? 'negro' : 'gris';
-  return 'otro';
 }
 
 // Se llama justo despues de abrir Minecraft. opts: { server: bool }
@@ -178,7 +217,8 @@ function watch(opts = {}) {
   const seconds = Math.ceil(c.maxHoldMs / 1000) + 120;
   const capture = useCapture(c);
   log(`watch: inicio (modo=${capture ? 'pantalla' : 'tiempo'} minHold=${c.minHoldMs} postLoad=${c.postLoadMs} servidor=${!!opts.server})`);
-  const proc = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', file,
+  const psArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File'];
+  const proc = spawn('powershell.exe', [...psArgs, file,
     '-Flag', flagFile, '-Icon', paths.asset('logos', 'icon.ico'), '-Title', c.gameTitle,
     '-Minimize', c.minimizeGame ? '1' : '0', '-Seconds', String(seconds)], { windowsHide: true });
   ps = proc;
@@ -186,14 +226,20 @@ function watch(opts = {}) {
   const t0 = Date.now();
   let firstSeen = 0;
   let lastTitle = null;
-  let titleLoaded = false;
   let done = false;
   const finish = (why) => {
     if (done) return; done = true;
     log(`finish: ${why} (+${Date.now() - t0}ms)`);
-    if (sampler) { clearInterval(sampler); sampler = null; }
     release(); // restaura Minecraft; la pantalla propia sigue encima un momento mas
     setTimeout(close, c.graceMs);
+  };
+  // Sin deteccion de pantalla: se quita pasado fallbackHoldMs desde que se abrio el juego.
+  let fellBack = false;
+  const fallback = (why) => {
+    if (fellBack || done) return; fellBack = true;
+    log(`modo por tiempo: ${why}`);
+    if (cap) { try { cap.kill(); } catch { /* ya cerrado */ } cap = null; }
+    fbTimer = setTimeout(() => finish('tiempo'), Math.max(0, c.fallbackHoldMs - (Date.now() - t0)));
   };
 
   proc.stdout.on('data', (buf) => {
@@ -202,9 +248,6 @@ function watch(opts = {}) {
       const title = line.slice(2).trim();
       if (title !== lastTitle) { lastTitle = title; log(`titulo: "${title}" (+${Date.now() - t0}ms)`); }
       if (!firstSeen) firstSeen = Date.now();
-      titleLoaded = !!title && !/for windows/i.test(title);
-      // Sin vigilancia de pantalla: se quita por titulo + tiempo de seguridad.
-      if (!capture && titleLoaded && Date.now() - firstSeen >= c.fallbackHoldMs) finish('titulo + tiempo');
     }
   });
   proc.on('error', () => finish('error powershell'));
@@ -216,45 +259,45 @@ function watch(opts = {}) {
     if (flagFile === path.join(dir, 'release.flag')) flagFile = null;
   });
 
-  if (!capture) return;
-  // Vigilancia de pantalla: hay que ver primero la roja/gris/negra (el juego esta cargando) y luego varias
-  // lecturas seguidas sin ellas (el juego ya muestra el menu o el mundo). Despues se espera postLoadMs.
+  if (!capture) { fallback('configurado'); return; }
+
+  // Vigilancia de pantalla: hay que ver primero la roja o la gris (el juego esta cargando) y luego varias
+  // lecturas seguidas sin ellas (ya muestra el menu o el mundo). Despues se espera postLoadMs.
+  const capFile = path.join(dir, 'capture.ps1');
+  fs.writeFileSync(capFile, '\ufeff' + CAPTURE, 'utf8');
+  const extra = c.postLoadMs + (opts.server ? c.serverJoinMs : 0);
   let sawLoading = false;
   let clearStreak = 0;
-  let blackSince = 0;
+  let errors = 0;
   let lastKind = null;
-  let busy = false;
-  const extra = c.postLoadMs + (opts.server ? c.serverJoinMs : 0);
-  sampler = setInterval(async () => {
-    if (done || busy) return;
-    busy = true;
-    try {
-      const kind = await classifyScreen();
-      if (kind !== lastKind) { lastKind = kind; log(`pantalla: ${kind} (+${Date.now() - t0}ms)`); }
-      const loadingLike = kind === 'rojo' || kind === 'gris' || kind === 'negro';
-      if (kind === null) return;
-      // Si la captura sale negra de forma continua (sistema que no la permite), se pasa a modo por tiempo.
-      if (kind === 'negro') { blackSince = blackSince || Date.now(); } else blackSince = 0;
-      if (blackSince && Date.now() - blackSince > 15000 && !sawLoading) {
-        log('captura negra continua: modo por tiempo');
-        if (sampler) { clearInterval(sampler); sampler = null; }
-        setTimeout(() => finish('captura no disponible'), Math.max(0, c.fallbackHoldMs - (Date.now() - t0)));
-        return;
-      }
-      if (loadingLike && firstSeen) sawLoading = true;
-      if (!sawLoading) {
-        // Nunca se vio la pantalla de carga: se usa el tiempo de seguridad.
-        if (Date.now() - t0 > c.fallbackHoldMs) finish('no se vio la carga');
-        return;
-      }
-      clearStreak = loadingLike ? 0 : clearStreak + 1;
-      if (clearStreak >= 3 && Date.now() - t0 >= c.minHoldMs) {
-        if (sampler) { clearInterval(sampler); sampler = null; }
-        log(`carga terminada; esperando ${extra}ms`);
-        setTimeout(() => finish('juego cargado'), extra);
-      }
-    } catch (e) { log(`captura fallo: ${e.message}`); } finally { busy = false; }
-  }, 700);
+  const onKind = (kind) => {
+    if (done || fellBack) return;
+    if (kind !== lastKind) { lastKind = kind; log(`pantalla: ${kind} (+${Date.now() - t0}ms)`); }
+    if (kind === 'error') { if (++errors >= 3) fallback('la captura da error'); return; }
+    const loadingLike = kind === 'rojo' || kind === 'gris' || kind === 'negro';
+    if (kind === 'rojo' || kind === 'gris') sawLoading = true;
+    if (!sawLoading) {
+      // Si pasan 12 s con el juego abierto y nunca se ve la carga, no se puede vigilar: modo por tiempo.
+      if (firstSeen && Date.now() - firstSeen > 12000) fallback('no se vio la pantalla de carga');
+      return;
+    }
+    clearStreak = loadingLike ? 0 : clearStreak + 1;
+    if (clearStreak >= 2 && Date.now() - t0 >= c.minHoldMs) {
+      if (cap) { try { cap.kill(); } catch { /* ya cerrado */ } cap = null; }
+      log(`carga terminada; esperando ${extra}ms`);
+      fbTimer = setTimeout(() => finish('juego cargado'), extra);
+    }
+  };
+  const capProc = spawn('powershell.exe', [...psArgs, capFile, '-Interval', String(c.captureEveryMs), '-Seconds', String(seconds)], { windowsHide: true });
+  cap = capProc;
+  let pending = '';
+  capProc.stdout.on('data', (buf) => {
+    pending += String(buf);
+    const lines = pending.split(/\r?\n/); pending = lines.pop();
+    for (const line of lines) if (line.startsWith('S|')) onKind(line.slice(2).trim());
+  });
+  capProc.on('error', () => fallback('no se pudo iniciar la captura'));
+  capProc.on('close', () => { if (cap === capProc) cap = null; fallback('la captura se cerro'); });
 }
 
-module.exports = { show, watch, close };
+module.exports = { prewarm, show, watch, close, destroy };
