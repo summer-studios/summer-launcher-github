@@ -20,12 +20,6 @@ module.exports = {
   // Carpeta con manifest.json, o archivo .mcpack / .zip, dentro de /packs
   resourcePacks: ['packs/mi_pack'],
 
-  // Opcional: reproductor de video Ore UI (ver config.oreUi y config.video).
-  // resourcePacks: ['packs/mi_pack', 'packs/video_player_rp'],
-  // behaviorPacks: ['packs/video_player_bp'],   // solo mundos locales; en servidores va instalado en el servidor
-  // worlds: ['Mi mundo'],                        // mundos locales donde activar los behavior packs
-  // videosDir: 'videos/mi-instancia',            // videos propios de esta instancia (.webm / .mkv)
-
   // Clientes a inyectar (ids de config.injectors, ej. 'flarial')
   injectors: [],
 };

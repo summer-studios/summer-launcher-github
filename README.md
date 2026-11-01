@@ -24,14 +24,7 @@ Minecraft Java de la cuenta; y si no tiene Java, de su skin de Bedrock.
 ## Desarrollo
 `probar.bat` para abrirlo, `compilar.bat` para generar el instalador. Login Microsoft: `LEEME-LOGIN.txt`.
 
-## Reproductor de video (Ore UI)
-Integra el addon Video Player: un reproductor dibujado con HTML/CSS/JS sobre Ore UI (hbui) y controlado por un
-behavior pack (`/play N` y un video aleatorio al entrar).
-- `packs/video_player_rp` (resource pack global) + `packs/video_player_bp` (behavior pack), ya incluidos en las dos instancias.
-- Al pulsar **JUGAR** el launcher parchea el `gameplay.html` de TU version del juego (cambia en cada actualizacion) con el CSS/JS
-  que pide cada pack en `hbui/summer-inject.json` (`src/main/game/oreui.js`).
-- Los videos se leen de `videos/` (`.webm` o `.mkv`, max. 8). Ore UI solo reproduce WebM VP8/VP9 + Vorbis, asi que los `.mkv`
-  se convierten con ffmpeg (`tools/ffmpeg/`) y se cachean (`src/main/game/videos.js`). Ver `videos/LEEME.txt`.
-- Ajustes en `config/launcher.config.js` (`oreUi`, `video`) y en cada instancia (`behaviorPacks`, `worlds`, `videosDir`).
-- Un behavior pack no puede ser global: en un **servidor** el pack `video_player_bp` tiene que estar instalado en el servidor
-  (el launcher solo lo instala para mundos locales listados en `worlds`).
+## Novedades
+- **Pantalla de carga**: se queda hasta que Minecraft deja de mostrar la roja/gris (config `loadingScreen`, log en `%APPDATA%\summer-launcher\splash-debug.log`).
+- **Skins**: menú «Editar skin» -> importar PNG, elegir; se instala como skin pack antes de abrir el juego.
+- **Bloqueo**: `database/launcher.json` (`locked`), se cambia desde el panel admin.

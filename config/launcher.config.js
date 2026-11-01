@@ -12,6 +12,10 @@ module.exports = {
     branch: 'main',
   },
 
+  // GIST SECRETO con access.json, servers.json y launcher.json (necesario si el repo es PRIVADO).
+  // Se crea con:  node admin/summer-admin.js crear-gist   y te dice el user y el id para pegar aqui.
+  gist: { user: 'summer-studios', id: 'TU_GIST_ID' },
+
   // Base de datos de acceso (database/access.json).
   // Si GitHub no responde, se usa la copia local incluida en el launcher.
   // Se vuelve a leer cada 'pollSeconds' mientras el launcher esta abierto, y SIEMPRE justo
@@ -20,7 +24,14 @@ module.exports = {
   database: {
     file: 'database/access.json',
     remoteUrl: null, // null = se arma solo con la seccion github de arriba
-    pollSeconds: 20,
+    pollSeconds: 8,
+    lockPollSeconds: 5, // el bloqueo se revisa mas seguido (con la API del gist, casi al instante)
+  },
+
+  // Bloqueo del launcher (database/launcher.json): se activa desde el panel admin.
+  lock: {
+    file: 'database/launcher.json',
+    remoteUrl: null, // null = misma ruta de GitHub que la base de datos de acceso
   },
 
   // IP y puerto de cada instancia (database/servers.json). Archivo aparte para cambiarlas
@@ -64,10 +75,16 @@ module.exports = {
     showText: true,     // texto "Cargando Minecraft…" (en modo imagen conviene false si ya lo trae)
     background: '#000000',
     minMs: 2500,
-    minimizeGame: true, // mientras carga, Minecraft queda minimizado (no se ven la roja ni la gris)
-    minHoldMs: 20000,   // minimo que se queda tapando Minecraft
-    maxHoldMs: 90000,   // tope: se quita aunque no detecte que Minecraft cargo
-    graceMs: 1200,      // pausa extra antes de quitarla
+    // La pantalla se queda hasta que Minecraft YA NO muestra la roja ni la gris de carga (lo detecta
+    // mirando la pantalla; la ventana del launcher no sale en esa captura). Necesita Windows 10 (2004) o 11.
+    detect: 'screen',   // 'screen' = vigila la pantalla | 'timer' = solo por tiempo (usa fallbackHoldMs)
+    minimizeGame: false, // true minimiza Minecraft, pero entonces solo se puede usar 'timer'
+    minHoldMs: 5000,    // minimo que se queda tapando Minecraft
+    postLoadMs: 1500,   // tiempo extra tapando una vez que dejo de verse la gris
+    serverJoinMs: 4000, // extra si la instancia entra a un servidor (conectando...)
+    fallbackHoldMs: 22000, // si no se puede vigilar la pantalla, se quita despues de este tiempo
+    maxHoldMs: 60000,   // tope absoluto
+    graceMs: 500,       // pausa extra antes de quitarla
     gameTitle: 'Summer Launcher', // titulo que se pone a la ventana de Minecraft
   },
 
@@ -85,29 +102,6 @@ module.exports = {
   bedrock: {
     comMojangOverride: null,
     closeRunningGame: true, // si Minecraft ya esta abierto, se cierra para que cargue los packs de la instancia
-  },
-
-  // Ore UI (la interfaz web hbui del juego). Los packs que traen hbui/summer-inject.json piden que se les
-  // anada su CSS/JS al gameplay.html del juego; el launcher lo parchea en cada arranque a partir del
-  // gameplay.html de TU version instalada (cambia en cada actualizacion). No esta verificado en todas las
-  // builds: si Minecraft no carga el hbui del pack, el reproductor no aparecera.
-  oreUi: {
-    enabled: true,
-    // Ruta manual al gameplay.html si el launcher no puede leerlo (carpeta del juego protegida):
-    // ...\\Content\\data\\gui\\dist\\hbui\\gameplay.html. null = deteccion automatica.
-    gameplayHtml: null,
-  },
-
-  // Videos del reproductor Ore UI. Se leen de /videos (y de userData/videos). Ore UI solo reproduce WebM
-  // (VP8/VP9 + Vorbis): los .mkv se convierten con ffmpeg (tools/ffmpeg/ffmpeg.exe o el del PATH) y se guardan
-  // en cache, asi la conversion solo ocurre una vez por video. Maximo 8.
-  video: {
-    enabled: true,
-    sourceDir: 'videos',
-    extensions: ['.webm', '.mkv'],
-    warnMb: 50,
-    // Solo se usan si hay que recodificar (si el .mkv ya trae VP8/VP9 + Vorbis solo se cambia el contenedor).
-    transcodeArgs: ['-vf', 'scale=854:-2', '-r', '24', '-c:v', 'libvpx', '-b:v', '450k', '-crf', '12', '-g', '48', '-c:a', 'libvorbis', '-b:a', '80k'],
   },
 
   // Inyectables (clientes tipo Flarial). Las instancias los referencian por id.

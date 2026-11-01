@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const paths = require('../paths');
+const lockDb = require('../database/lock-db');
 const db = require('../database/access-db');
 const serversDb = require('../database/servers-db');
 
@@ -22,9 +23,6 @@ function normalize(def) {
     server: def.server && def.server.ip ? { ip: def.server.ip, port: def.server.port || 19132 } : null,
     resourcePacks: def.resourcePacks || [],  // carpetas o .mcpack, relativas a la raiz (ej. packs/mi_pack)
     injectors: def.injectors || [],          // ids de config.injectors (ej. 'flarial')
-    behaviorPacks: def.behaviorPacks || [],  // behavior packs (carpeta o .mcpack) que se copian a com.mojang/behavior_packs
-    worlds: def.worlds || [],                // nombres de mundos locales donde activar esos behavior packs
-    videosDir: def.videosDir || null,        // carpeta de videos propia (relativa a la raiz); null = config.video.sourceDir
   };
 }
 
@@ -53,7 +51,8 @@ function listFor(gamertag) {
     .filter((i) => i.access === 'public' || db.canAccess(gamertag, i.id))
     .map((i) => {
       const thumb = i.thumbnail && fs.existsSync(paths.inRoot(i.thumbnail)) ? pathToFileURL(paths.inRoot(i.thumbnail)).href : null;
-      return { id: i.id, name: i.tabTitle, thumbnail: thumb, hasServer: !!serversDb.get(i.id, i.server) };
+      const lk = (lockDb.get().instances || {})[i.id];
+      return { id: i.id, name: i.tabTitle, thumbnail: thumb, hasServer: !!serversDb.get(i.id, i.server), locked: !!lk, lockMessage: lk ? lk.message : '' };
     });
 }
 

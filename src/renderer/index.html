@@ -6,6 +6,25 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Controles de ventana (arriba a la izquierda) -->
+  <div id="winctl">
+    <button id="wRefresh" title="Actualizar" aria-label="Actualizar"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5"/></svg></button>
+    <button id="wMin" title="Minimizar" aria-label="Minimizar"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <button id="wClose" class="close" title="Cerrar" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
+  </div>
+
+  <!-- Confirmar cierre de sesion -->
+  <div id="confirm" class="confirm hidden">
+    <div class="box">
+      <h3>¿Quieres cerrar sesión?</h3>
+      <p>Tendrás que volver a iniciar sesión para entrar.</p>
+      <div class="row">
+        <button id="confirmNo" class="ghost">No</button>
+        <button id="confirmYes" class="primary small">Sí</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Video de introduccion (antes de abrir la interfaz) -->
   <div id="intro" class="overlay">
@@ -40,6 +59,9 @@
       </div>
 
       <nav>
+        <button data-action="instances">
+          <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg><span>Instancias</span>
+        </button>
         <button data-action="skin">
           <svg viewBox="0 0 24 24"><path d="M8 3 3 6l2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z"/></svg><span>Editar skin</span>
         </button>
@@ -80,6 +102,22 @@
         <p id="empty" class="muted hidden">No hay instancias disponibles para tu cuenta todavía.</p>
       </section>
 
+      <!-- Vista: skins -->
+      <section id="viewSkins" class="view hidden">
+        <h1><span class="light">MIS</span> <span class="bold">SKINS</span></h1>
+        <div class="skin-tools">
+          <button id="skinImport" class="primary small">Importar skins</button>
+          <button id="skinEditWeb" class="ghost">Editar skin en minecraft.net</button>
+          <span class="muted" id="skinCount"></span>
+        </div>
+        <div id="skinGrid" class="skin-grid"></div>
+        <p id="skinEmpty" class="muted hidden">Todavía no importaste skins. Pulsa «Importar skins» y elige uno o varios archivos PNG (64x64, 64x32 o 128x128).</p>
+        <div id="skinBar" class="skin-bar">
+          <span id="skinBarText" class="muted">Elige una skin</span>
+          <button id="skinChoose" class="primary small" disabled>ELEGIR</button>
+        </div>
+      </section>
+
       <!-- Vista: configuracion -->
       <section id="viewSettings" class="view hidden">
         <h1><span class="light">CONFIG</span><span class="bold">URACIÓN</span></h1>
@@ -87,7 +125,6 @@
           <div class="row"><span class="muted">Minecraft Bedrock</span><b id="setKind">—</b></div>
           <div class="row"><span class="muted">Carpeta com.mojang</span><code id="setPath">no encontrada</code></div>
           <div class="row"><span class="muted">Base de datos</span><b id="setDb">—</b></div>
-          <div class="row"><span class="muted">Permiso para parchear Minecraft</span><span><b id="setConsent">—</b> <button id="revokeConsent" class="ghost small hidden">Revocar</button></span></div>
           <div class="row"><span class="muted">Versión del launcher</span><b id="setVer">—</b></div>
           <div class="row stack">
             <span class="muted">Forzar otra carpeta com.mojang (opcional)</span>
@@ -104,6 +141,13 @@
     <img id="loadingLogo" alt="">
     <div class="bar"><i id="loadingBar"></i></div>
     <p id="loadingMsg"></p>
+  </div>
+
+  <!-- Launcher bloqueado desde el panel admin -->
+  <div id="locked" class="overlay hidden">
+    <img id="lockedLogo" alt="">
+    <h2>LAUNCHER BLOQUEADO</h2>
+    <p id="lockedMsg"></p>
   </div>
 
   <div id="toast" class="hidden"></div>
