@@ -6,6 +6,24 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Controles de ventana (arriba a la izquierda) -->
+  <div id="winctl">
+    <button id="wMin" title="Minimizar" aria-label="Minimizar"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <button id="wClose" class="close" title="Cerrar" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
+  </div>
+
+  <!-- Confirmar cierre de sesion -->
+  <div id="confirm" class="confirm hidden">
+    <div class="box">
+      <h3>¿Quieres cerrar sesión?</h3>
+      <p>Tendrás que volver a iniciar sesión para entrar.</p>
+      <div class="row">
+        <button id="confirmNo" class="ghost">No</button>
+        <button id="confirmYes" class="primary small">Sí</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Video de introduccion (antes de abrir la interfaz) -->
   <div id="intro" class="overlay">

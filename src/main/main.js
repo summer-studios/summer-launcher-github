@@ -74,7 +74,7 @@ function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = nu
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1180, height: 680, minWidth: 940, minHeight: 560,
+    width: 1180, height: 680, minWidth: 940, minHeight: 560, fullscreen: true, frame: false,
     title: config.name, icon: paths.asset('logos', 'icon.png'), backgroundColor: '#000000', autoHideMenuBar: true, show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -88,6 +88,8 @@ function createWindow() {
 }
 
 function registerIpc() {
+  ipcMain.handle('win:minimize', () => { if (win && !win.isDestroyed()) win.minimize(); });
+  ipcMain.handle('win:close', () => { if (win && !win.isDestroyed()) win.close(); });
   ipcMain.handle('app:init', () => ({
     name: config.name,
     studio: config.studio,

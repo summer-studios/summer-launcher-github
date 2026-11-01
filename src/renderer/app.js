@@ -238,12 +238,19 @@ function bind() {
     if (a === 'skin') showView('skins');
     else if (a === 'help') api.openLink('help');
     else if (a === 'settings') showView('settings');
-    else if (a === 'logout') {
-      await api.logout();
-      $('#app').classList.add('hidden');
-      $('#login').classList.remove('hidden');
-    }
+    else if (a === 'logout') $('#confirm').classList.remove('hidden');
   }));
+  $('#confirmNo').addEventListener('click', () => $('#confirm').classList.add('hidden'));
+  $('#confirm').addEventListener('click', (e) => { if (e.target.id === 'confirm') $('#confirm').classList.add('hidden'); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#confirm').classList.add('hidden'); });
+  $('#confirmYes').addEventListener('click', async () => {
+    $('#confirm').classList.add('hidden');
+    await api.logout();
+    $('#app').classList.add('hidden');
+    $('#login').classList.remove('hidden');
+  });
+  $('#wMin').addEventListener('click', () => api.minimize());
+  $('#wClose').addEventListener('click', () => api.closeWindow());
   document.querySelectorAll('[data-link]').forEach((a) => a.addEventListener('click', () => api.openLink(a.dataset.link)));
 
   $('#saveOverride').addEventListener('click', async () => {

@@ -4,3 +4,7 @@ dist/
 
 # Programa admin: contiene tu token de GitHub, NUNCA se sube
 admin/admin.config.json
+
+admin/app/node_modules/
+admin/app/dist/
+admin/app/bundle/

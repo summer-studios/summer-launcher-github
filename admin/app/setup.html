@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Summer Admin</title>
+<style>
+  body { margin: 0; height: 100vh; display: grid; place-items: center; background: #0b0714; font-family: "Segoe UI", system-ui, sans-serif; color: #17102a; }
+  .box { width: 440px; padding: 30px; border-radius: 14px; background: #fff; box-shadow: 0 24px 80px #000a; }
+  h1 { margin: 0 0 6px; font-size: 22px; } p { margin: 0 0 18px; font-size: 14px; color: #5d5675; line-height: 1.5; }
+  input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #d8d2e6; border-radius: 8px; font: inherit; }
+  button { margin-top: 14px; width: 100%; padding: 12px; border: 0; border-radius: 8px; background: #6d3fe0; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { background: #5b2fcb; } .err { margin-top: 10px; color: #c62828; font-size: 13px; min-height: 16px; }
+</style>
+<div class="box">
+  <h1>Summer Admin</h1>
+  <p id="msg">Pega tu token de GitHub. Se guarda solo en este PC.</p>
+  <input id="t" type="password" placeholder="ghp_… / github_pat_…" autofocus>
+  <button id="b">Guardar y abrir</button>
+  <div class="err" id="e"></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  if (q.get('m')) document.getElementById('e').textContent = q.get('m');
+  const go = async () => {
+    const v = document.getElementById('t').value.trim();
+    if (!v) { document.getElementById('e').textContent = 'Pega el token.'; return; }
+    await window.setup.save(v);
+  };
+  document.getElementById('b').onclick = go;
+  document.getElementById('t').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+</script>

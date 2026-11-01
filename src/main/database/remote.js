@@ -13,6 +13,17 @@ function githubRawUrl(file) {
   return `https://raw.githubusercontent.com/${g.owner}/${g.repo}/${g.branch}/${file}`;
 }
 
+// Repo PRIVADO: GitHub no deja leerlo sin iniciar sesion (404), asi que los cambios del panel admin
+// nunca llegarian. Con un gist secreto (config.gist) los 3 archivos se leen sin token y al instante.
+function remoteFor(file, remoteUrl) {
+  if (remoteUrl) return remoteUrl;
+  const gi = config.gist;
+  if (gi && gi.user && gi.id && !String(gi.id).startsWith('TU_')) {
+    return `https://gist.githubusercontent.com/${gi.user}/${gi.id}/raw/${path.basename(file)}`;
+  }
+  return githubRawUrl(file);
+}
+
 // El cache puede ir cifrado con el sistema (DPAPI en Windows): asi el archivo del disco
 // no se puede abrir con el Bloc de notas. Si el cifrado no esta disponible, va en claro.
 function writeCache(file, data, encrypt) {
@@ -30,7 +41,7 @@ function readCache(file, encrypt) {
 async function loadJson(opts) {
   const { file, remoteUrl, cacheName, valid, encryptCache = false } = opts;
   const cacheFile = path.join(paths.userData(), cacheName);
-  const url = remoteUrl || githubRawUrl(file);
+  const url = remoteFor(file, remoteUrl);
   if (url) {
     try {
       const res = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`, { signal: AbortSignal.timeout(6000), cache: 'no-store' });

@@ -88,3 +88,25 @@ Los launchers abiertos muestran "Launcher bloqueado momentáneamente" en unos se
 entrar a Minecraft. Pulsa "Desbloquear launcher" y vuelve todo a la normalidad, sin reiniciar.
 Por linea de comandos:  node admin/summer-admin.js lock on [mensaje]   /   lock off
 El estado vive en database/launcher.json (igual que access.json y servers.json).
+
+-------------------------------------------------------------
+5) BLOQUEO/DESBLOQUEO RAPIDO (repo privado) - gist secreto
+-------------------------------------------------------------
+Con repo privado, el launcher no puede leer los cambios (404) y el bloqueo nunca llega. Solucion:
+  1. Crea un token CLASICO en https://github.com/settings/tokens/new con el permiso "gist"
+     (los tokens "fine-grained" no sirven para gists). Pegalo en admin/admin.config.json.
+  2. Ejecuta:  node admin/summer-admin.js crear-gist
+     Te dira el "user" y el "id". Pegalos en config/launcher.config.js, seccion "gist".
+  3. Recompila el launcher (compilar.bat) y repartelo una vez.
+Desde ahi el panel admin guarda en el gist y los launchers abiertos aplican bloqueo/desbloqueo
+en ~10-15 segundos. Los datos del gist no se listan en publico (solo con el enlace exacto).
+
+-------------------------------------------------------------
+6) Summer Admin como app (.exe)
+-------------------------------------------------------------
+Carpeta admin/app. Doble clic en admin/app/compilar-admin.bat (necesita Node.js).
+Genera dist/Summer Admin x.x.x.exe: un solo archivo, sin instalar, sin terminal.
+- La primera vez pide tu token de GitHub y lo guarda solo en tu PC.
+- Menu (tecla Alt): Recargar, "Crear gist de datos (una vez)", Cambiar token.
+- Usa la config del launcher que tenia la carpeta al compilar (repo, gist). Si cambias
+  config/launcher.config.js (por ejemplo al poner el gist), vuelve a compilar el admin.

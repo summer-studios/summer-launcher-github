@@ -12,6 +12,10 @@ module.exports = {
     branch: 'main',
   },
 
+  // GIST SECRETO con access.json, servers.json y launcher.json (necesario si el repo es PRIVADO).
+  // Se crea con:  node admin/summer-admin.js crear-gist   y te dice el user y el id para pegar aqui.
+  gist: { user: 'summer-studios', id: 'TU_GIST_ID' },
+
   // Base de datos de acceso (database/access.json).
   // Si GitHub no responde, se usa la copia local incluida en el launcher.
   // Se vuelve a leer cada 'pollSeconds' mientras el launcher esta abierto, y SIEMPRE justo
@@ -21,7 +25,7 @@ module.exports = {
     file: 'database/access.json',
     remoteUrl: null, // null = se arma solo con la seccion github de arriba
     pollSeconds: 8,
-    lockPollSeconds: 4, // el bloqueo se revisa mas seguido
+    lockPollSeconds: 10, // el bloqueo se revisa mas seguido (aplica en menos de ~15 s)
   },
 
   // Bloqueo del launcher (database/launcher.json): se activa desde el panel admin.

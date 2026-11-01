@@ -21,7 +21,7 @@ const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = process.env.SUMMER_ROOT || path.join(__dirname, '..');
 const launcherCfg = require(path.join(ROOT, 'config', 'launcher.config.js'));
 
 const GAMERTAG = /^[A-Za-z0-9 _#.-]{1,32}$/;
@@ -41,15 +41,16 @@ function pretty(json) {
 // ---------------------------------------------------------------- configuracion
 function loadConfig() {
   let file = {};
-  try { file = JSON.parse(fs.readFileSync(path.join(__dirname, 'admin.config.json'), 'utf8').replace(/^﻿/, '')); } catch {}
+  try { file = JSON.parse(fs.readFileSync(process.env.SUMMER_ADMIN_CONFIG || path.join(__dirname, 'admin.config.json'), 'utf8').replace(/^﻿/, '')); } catch {}
   const g = launcherCfg.github || {};
+  const gi = launcherCfg.gist || {};
   return {
     token: process.env.SUMMER_GITHUB_TOKEN || file.githubToken || '',
     owner: file.owner || g.owner,
     repo: file.repo || g.repo,
     branch: file.branch || g.branch || 'main',
-    backend: file.backend || 'repo',            // 'repo' (archivos del repo) o 'gist'
-    gistId: file.gistId || '',
+    backend: file.backend || (gi.id && !String(gi.id).startsWith('TU_') ? 'gist' : 'repo'), // 'repo' o 'gist'
+    gistId: file.gistId || (String(gi.id || '').startsWith('TU_') ? '' : gi.id || ''),
     api: process.env.SUMMER_GITHUB_API || 'https://api.github.com',
     port: Number(file.panelPort) || 4580,
   };
@@ -133,17 +134,37 @@ function repoStore(cfg) {
 function gistStore(cfg) {
   const gh = githubClient(cfg);
   if (!cfg.gistId) throw new Error('backend "gist" necesita "gistId" en admin.config.json');
+  // Una sola lectura del gist sirve para los 3 archivos (access, servers, launcher); se reutiliza ~3 s
+  // y al guardar se actualiza al momento, asi el panel responde rapido tras cada cambio.
+  let snap = null; let snapAt = 0;
+  const load = async () => {
+    if (snap && Date.now() - snapAt < 3000) return snap;
+    const d = await gh('GET', `/gists/${cfg.gistId}`);
+    snap = {}; for (const [n, f] of Object.entries(d.files || {})) snap[n] = f.content;
+    snapAt = Date.now();
+    return snap;
+  };
   return {
     label: `gist ${cfg.gistId}`,
     async read(file) {
-      const d = await gh('GET', `/gists/${cfg.gistId}`);
-      const f = d.files && d.files[path.basename(file)];
-      return { json: f ? JSON.parse(f.content.replace(/^﻿/, '')) : null, version: null };
+      const c = (await load())[path.basename(file)];
+      return { json: c ? JSON.parse(c.replace(/^\uFEFF/, '')) : null, version: null };
     },
     async write(file, json) {
-      await gh('PATCH', `/gists/${cfg.gistId}`, { files: { [path.basename(file)]: { content: pretty(json) } } });
+      const name = path.basename(file); const content = pretty(json);
+      await gh('PATCH', `/gists/${cfg.gistId}`, { files: { [name]: { content } } });
+      if (snap) { snap[name] = content; snapAt = Date.now(); }
     },
   };
+}
+
+// Crea el gist secreto con los 3 archivos de database/ (una sola vez). Devuelve { user, id }.
+async function crearGist(cfg) {
+  const gh = githubClient(cfg);
+  const files = {};
+  for (const f of Object.values(FILES)) files[path.basename(f)] = { content: fs.readFileSync(path.join(ROOT, f), 'utf8') };
+  const d = await gh('POST', '/gists', { description: 'Summer Launcher - datos', public: false, files });
+  return { user: d.owner.login, id: d.id };
 }
 
 function makeStore(cfg, local) {
@@ -304,9 +325,14 @@ async function main() {
   const [cmd = 'panel', ...rest] = args;
   const cfg = loadConfig();
 
-  if (!['panel', 'list', 'add', 'set', 'remove', 'server', 'lock'].includes(cmd)) {
+  if (!['panel', 'list', 'add', 'set', 'remove', 'server', 'lock', 'crear-gist'].includes(cmd)) {
     console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
     process.exit(cmd === 'help' ? 0 : 1);
+  }
+  if (cmd === 'crear-gist') {
+    const g = await crearGist(cfg);
+    console.log(`\nGIST CREADO. En config/launcher.config.js pon:\n  gist: { user: '${g.user}', id: '${g.id}' },\nLuego recompila el launcher. El panel admin ya usara este gist solo.`);
+    return;
   }
   const store = makeStore(cfg, local);
 
@@ -336,4 +362,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch((e) => { console.error('Error:', e.message); process.exit(1); });
-module.exports = { ops, makeStore, loadConfig, startPanel };
+module.exports = { ops, makeStore, loadConfig, startPanel, crearGist };

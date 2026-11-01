@@ -33,7 +33,7 @@ a { cursor: pointer; }
 
 /* ---------- App ---------- */
 #app { display: flex; height: 100%; background: var(--bg); }
-#sidebar { width: 320px; flex: none; display: flex; flex-direction: column; align-items: stretch; padding: 18px 24px 16px;
+#sidebar { width: 320px; flex: none; display: flex; flex-direction: column; align-items: stretch; padding: 54px 24px 16px;
   background: linear-gradient(180deg, #17102a 0%, var(--panel) 45%, #08050d 100%); border-right: 1px solid var(--line); transition: width .25s; overflow: hidden; }
 #collapse { align-self: flex-end; color: #cfc6e6; padding: 4px; transition: transform .25s; }
 .profile { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 18px 0 30px; }
@@ -138,3 +138,21 @@ code { font-size: 12px; color: var(--accent-2); text-align: right; word-break: b
 #locked img { width: min(420px, 60vw); }
 #locked h2 { font-size: 28px; font-weight: 800; letter-spacing: .06em; color: var(--accent-2); }
 #locked p { max-width: 520px; font-size: 16px; color: #cfc6e6; }
+
+/* ---------- Controles de ventana ---------- */
+#winctl { position: fixed; top: 6px; left: 12px; z-index: 9999; display: flex; gap: 6px; padding: 3px; border-radius: 10px;
+  background: #ffffff0f; border: 1px solid #ffffff1f; backdrop-filter: blur(6px); }
+#winctl button { width: 30px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: #fff; transition: background .15s; }
+#winctl button:hover { background: #ffffff26; }
+#winctl button.close:hover { background: #e5484d; }
+#winctl svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
+
+/* ---------- Confirmar cerrar sesion ---------- */
+.confirm { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; background: #000000b3; backdrop-filter: blur(4px); }
+.confirm .box { width: 380px; padding: 28px; border-radius: 14px; background: #fff; color: #17102a; text-align: center; box-shadow: 0 24px 80px #000a; }
+.confirm h3 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
+.confirm p { margin: 0 0 24px; font-size: 14px; color: #5d5675; }
+.confirm .row { display: flex; gap: 12px; justify-content: center; }
+.confirm .row button { min-width: 110px; padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; justify-content: center; }
+.confirm .ghost { margin-top: 0; background: #f0edf7; color: #17102a; border: 0; }
+.confirm .ghost:hover { background: #e4dff0; }
