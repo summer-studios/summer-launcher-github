@@ -1,1 +1,8 @@
-{ "_ayuda": "Con 'locked': true nadie puede entrar y se muestra 'message'.", "locked": false, "message": "Launcher bloqueado momentáneamente" }
+{
+  "_ayuda": "Con 'locked': true nadie puede entrar y se muestra 'message'.",
+  "locked": false,
+  "message": "Launcher bloqueado momentáneamente",
+  "instances": {
+    "sleeplands-hardcore": { "locked": true, "message": "Esta instancia está bloqueada por ahora" }
+  }
+}
