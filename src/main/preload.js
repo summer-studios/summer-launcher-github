@@ -2,9 +2,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('summer', {
   init: () => ipcRenderer.invoke('app:init'),
-  refresh: () => ipcRenderer.invoke('app:refresh'),
-  minimize: () => ipcRenderer.invoke('win:minimize'),
-  closeWindow: () => ipcRenderer.invoke('win:close'),
   restore: () => ipcRenderer.invoke('auth:restore'),
   login: (gamertag) => ipcRenderer.invoke('auth:login', gamertag),
   logout: () => ipcRenderer.invoke('auth:logout'),
@@ -12,14 +9,9 @@ contextBridge.exposeInMainWorld('summer', {
   launch: (id) => ipcRenderer.invoke('instance:launch', id),
   onInstancesUpdated: (cb) => ipcRenderer.on('instances:updated', (_e, list) => cb(list)),
   onProgress: (cb) => ipcRenderer.on('launch:progress', (_e, d) => cb(d)),
-  getLock: () => ipcRenderer.invoke('lock:get'),
-  onLock: (cb) => ipcRenderer.on('lock:updated', (_e, s) => cb(s)),
-  skinsList: () => ipcRenderer.invoke('skins:list'),
-  skinsImport: () => ipcRenderer.invoke('skins:import'),
-  skinsSelect: (id) => ipcRenderer.invoke('skins:select', id),
-  skinsRemove: (id) => ipcRenderer.invoke('skins:remove', id),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setOverride: (p) => ipcRenderer.invoke('settings:setOverride', p),
+  revokeConsent: () => ipcRenderer.invoke('consent:revoke'),
   openGameFolder: () => ipcRenderer.invoke('settings:openFolder'),
   openLink: (key) => ipcRenderer.invoke('link:open', key),
 });

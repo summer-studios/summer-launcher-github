@@ -33,7 +33,7 @@ a { cursor: pointer; }
 
 /* ---------- App ---------- */
 #app { display: flex; height: 100%; background: var(--bg); }
-#sidebar { width: 320px; flex: none; display: flex; flex-direction: column; align-items: stretch; padding: 54px 24px 16px;
+#sidebar { width: 320px; flex: none; display: flex; flex-direction: column; align-items: stretch; padding: 18px 24px 16px;
   background: linear-gradient(180deg, #17102a 0%, var(--panel) 45%, #08050d 100%); border-right: 1px solid var(--line); transition: width .25s; overflow: hidden; }
 #collapse { align-self: flex-end; color: #cfc6e6; padding: 4px; transition: transform .25s; }
 .profile { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 18px 0 30px; }
@@ -114,54 +114,4 @@ code { font-size: 12px; color: var(--accent-2); text-align: right; word-break: b
 .gtbox { display: flex; gap: 10px; align-items: center; }
 .gtbox input { width: 300px; padding: 13px 16px; border-radius: var(--radius); background: #120c20; border: 1px solid var(--line); color: inherit; font: inherit; outline: none; }
 .gtbox input:focus { border-color: var(--accent); }
-
-/* ---------- Skins ---------- */
-.skin-tools { display: flex; gap: 14px; align-items: center; margin: -8px 0 26px; }
-.skin-tools .ghost { margin-top: 0; }
-.skin-grid { display: flex; flex-wrap: wrap; gap: 18px; padding-bottom: 12px; }
-.skin { position: relative; width: 150px; height: 170px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 8px 8px; border-radius: var(--radius);
-  background: linear-gradient(135deg, #1b1230, #120b22); border: 1px solid var(--line); transition: transform .15s, border-color .15s, box-shadow .15s; }
-.skin canvas { flex: 1; min-height: 0; max-width: 100%; image-rendering: pixelated; }
-.skin .sname { max-width: 100%; font-size: 12px; color: #a79bc4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.skin:hover { transform: translateY(-3px); border-color: var(--accent); }
-.skin.pending { border-color: var(--accent-2); box-shadow: 0 0 0 2px #a78bfa66; }
-.skin.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 10px 30px #8b5cf63d; }
-.skin .badge { position: absolute; top: 6px; left: 6px; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 800; letter-spacing: .08em; background: var(--accent); }
-.skin .del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 3px; color: #ff9aa9; font-size: 16px; line-height: 20px; background: #0009; opacity: 0; transition: opacity .15s; }
-.skin:hover .del { opacity: 1; }
-.skin-bar { position: sticky; bottom: -44px; margin: 26px -42px -44px; padding: 16px 42px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #07040c; border-top: 1px solid var(--line); }
-#skinBarText { font-size: 14px; }
-
-/* ---------- Launcher bloqueado ---------- */
-#locked { z-index: 90; gap: 18px; text-align: center; padding: 24px;
-  background: radial-gradient(900px 500px at 50% 0%, #2a1650 0%, #000 70%); }
-#locked img { width: min(420px, 60vw); }
-#locked h2 { font-size: 28px; font-weight: 800; letter-spacing: .06em; color: var(--accent-2); }
-#locked p { max-width: 520px; font-size: 16px; color: #cfc6e6; }
-
-/* ---------- Controles de ventana ---------- */
-#winctl { position: fixed; top: 6px; left: 12px; z-index: 9999; display: flex; gap: 6px; padding: 3px; border-radius: 10px;
-  background: #ffffff0f; border: 1px solid #ffffff1f; backdrop-filter: blur(6px); }
-#winctl button { width: 30px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: #fff; transition: background .15s; }
-#winctl button:hover { background: #ffffff26; }
-#winctl button.close:hover { background: #e5484d; }
-#winctl svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
-
-/* ---------- Confirmar cerrar sesion ---------- */
-.confirm { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; background: #000000b3; backdrop-filter: blur(4px); }
-.confirm .box { width: 380px; padding: 28px; border-radius: 14px; background: #fff; color: #17102a; text-align: center; box-shadow: 0 24px 80px #000a; }
-.confirm h3 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
-.confirm p { margin: 0 0 24px; font-size: 14px; color: #5d5675; }
-.confirm .row { display: flex; gap: 12px; justify-content: center; }
-.confirm .row button { min-width: 110px; padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; justify-content: center; }
-.confirm .ghost { margin-top: 0; background: #f0edf7; color: #17102a; border: 0; }
-.confirm .ghost:hover { background: #e4dff0; }
-
-/* ---------- Refrescar + instancia bloqueada ---------- */
-#winctl button.spin svg { animation: wspin .7s linear infinite; }
-@keyframes wspin { to { transform: rotate(360deg); } }
-.inst.locked .thumb img, .inst.locked .thumb b { filter: grayscale(1) brightness(.55); }
-.inst.locked .thumb::after { opacity: 1; background: linear-gradient(0deg, #000000e6 0%, #00000099 100%); }
-.inst.locked .play { opacity: 1; transform: translate(-50%, 0); background: #3a3347; box-shadow: none; color: #e9e4f5; cursor: not-allowed; }
-.inst.locked:hover { transform: none; }
-.inst.locked:hover .thumb { border-color: var(--line); box-shadow: none; }
+.ghost.small { margin-top: 0; margin-left: 10px; padding: 6px 12px; font-size: 13px; }

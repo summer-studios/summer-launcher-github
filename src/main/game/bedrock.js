@@ -35,8 +35,6 @@ function locate() {
   return hit ? { comMojang: hit.dir, kind: hit.kind } : null;
 }
 
-function ensureDir(d) { fs.mkdirSync(d, { recursive: true }); }
-
 function ensureStructure(comMojang) {
   for (const f of SUBFOLDERS) fs.mkdirSync(path.join(comMojang, f), { recursive: true });
 }
@@ -59,7 +57,7 @@ function locateAll() {
       } catch { /* sin permiso: se usa solo la carpeta principal */ }
     }
   }
-  return { packRoot: found.comMojang, globalRoots };
+  return { packRoot: found.comMojang, globalRoots, kind: found.kind };
 }
 
 // --- Minecraft abierto: si ya esta corriendo, lee los packs al arrancar y pisa la lista al cerrar.
@@ -79,4 +77,4 @@ async function closeIfRunning() {
   return true;
 }
 
-module.exports = { locate, locateAll, closeIfRunning, ensureStructure, ensureDir, SUBFOLDERS };
+module.exports = { locate, locateAll, closeIfRunning, ensureStructure, SUBFOLDERS };
